@@ -21,10 +21,13 @@ app.use(cors({ origin: CLIENT_ORIGIN }));
 // HEALTH CHECK
 app.get('/health', (req, res) => res.json({ ok: true }));
 
-// GET ALL MESSAGES
+// GET MESSAGES (FILTER BY ROOM)
 app.get('/messages', async (req, res) => {
   try {
-    const messages = await Message.find().sort({ createdAt: 1 }).limit(100);
+    const { room } = req.query;
+    if (!room) return res.json([]);
+
+    const messages = await Message.find({ room }).sort({ createdAt: 1 }).limit(100);
     return res.json(messages);
   } catch (err) {
     console.error(err);
@@ -43,11 +46,21 @@ const io = new Server(server, {
 io.on('connection', (socket) => {
   console.log('Socket connected:', socket.id);
 
+  socket.on('join_room', (room) => {
+    socket.join(room);
+    console.log(`User ${socket.id} joined room: ${room}`);
+  });
+
   socket.on('send_message', async (payload) => {
     try {
-      const msg = new Message({ username: payload.username, text: payload.text });
+      const { username, text, room } = payload;
+      if (!room) return;
+
+      const msg = new Message({ username, text, room });
       await msg.save();
-      io.emit('receive_message', msg);
+
+      // Emit only to that room
+      io.to(room).emit('receive_message', msg);
     } catch (err) {
       console.error('Error saving message', err);
     }
@@ -59,15 +72,12 @@ io.on('connection', (socket) => {
 });
 
 // CONNECT MONGO + START SERVER
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
-.then(() => {
-  console.log('Connected to MongoDB');
-  server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-})
-.catch(err => {
-  console.error('Failed to connect to MongoDB', err);
-  process.exit(1);
-});
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => {
+    console.log('Connected to MongoDB');
+    server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  })
+  .catch(err => {
+    console.error('Failed to connect to MongoDB', err);
+    process.exit(1);
+  });
