@@ -249,3 +249,62 @@ h3 {
 .send-btn:hover {
     background: var(--primary-hover);
 }
+
+/* --- Mobile Responsiveness --- */
+@media (max-width: 600px) {
+    body {
+        align-items: flex-start;
+        /* Allow top pinning */
+        background-color: var(--card-bg);
+        /* Seamless look for full screen */
+    }
+
+    .app-container {
+        padding: 0;
+        width: 100%;
+        max-width: 100%;
+        height: 100vh;
+        /* Fallback */
+        height: 100dvh;
+    }
+
+    .card {
+        border-radius: 0;
+        border: none;
+        box-shadow: none;
+        height: 100%;
+    }
+
+    .chat-window {
+        height: 100%;
+        max-height: none;
+    }
+
+    .join-card {
+        justify-content: center;
+        height: 100%;
+        max-width: 100%;
+    }
+
+    .message {
+        max-width: 85%;
+    }
+
+    .input-field,
+    .btn-primary,
+    .send-btn {
+        font-size: 16px;
+        /* Prevent zoom on iOS */
+        padding: 14px;
+    }
+
+    .chat-header {
+        padding: 15px;
+    }
+
+    .chat-footer {
+        padding: 15px;
+        padding-bottom: max(15px, env(safe-area-inset-bottom));
+        /* iOS Home bar safe area */
+    }
+}
