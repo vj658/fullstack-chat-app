@@ -8,28 +8,42 @@ export default function App() {
     const [room, setRoom] = useState('');
     const [joined, setJoined] = useState(false);
 
-
     useEffect(() => {
-        // reconnect logic can be added
         socket.on('connect', () => console.log('connected to socket', socket.id));
         return () => socket.off('connect');
     }, [])
 
-
-    function handleJoin() {
+    function handleJoin(e) {
+        if (e && e.key && e.key !== 'Enter') return;
         if (!username.trim() || !room.trim()) return alert('Enter a username and room');
         setJoined(true);
     }
 
-
     return (
-        <div style={{ maxWidth: 800, margin: '20px auto', fontFamily: 'system-ui, sans-serif' }}>
+        <div className="app-container">
             {!joined ? (
-                <div>
-                    <h2>Join a Chat Room</h2>
-                    <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Your name" style={{ display: 'block', marginBottom: 10 }} />
-                    <input value={room} onChange={e => setRoom(e.target.value)} placeholder="Room ID" style={{ display: 'block', marginBottom: 10 }} />
-                    <button onClick={handleJoin}>Join</button>
+                <div className="card join-card">
+                    <h2>Join Chat</h2>
+                    <div className="input-group">
+                        <label className="label">Username</label>
+                        <input
+                            className="input-field"
+                            value={username}
+                            onChange={e => setUsername(e.target.value)}
+                            placeholder="e.g. Alice"
+                        />
+                    </div>
+                    <div className="input-group">
+                        <label className="label">Room ID</label>
+                        <input
+                            className="input-field"
+                            value={room}
+                            onChange={e => setRoom(e.target.value)}
+                            onKeyDown={handleJoin}
+                            placeholder="e.g. General"
+                        />
+                    </div>
+                    <button className="btn-primary" onClick={() => handleJoin()}>Enter Room</button>
                 </div>
             ) : (
                 <Chat username={username} room={room} socket={socket} />
