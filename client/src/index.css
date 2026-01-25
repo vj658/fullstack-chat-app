@@ -250,6 +250,51 @@ h3 {
     background: var(--primary-hover);
 }
 
+.user-sidebar {
+    width: 200px;
+    background: rgba(15, 23, 42, 0.5);
+    border-right: 1px solid var(--border-color);
+    padding: 20px;
+    overflow-y: auto;
+    display: none;
+    /* Hidden by default on small screens, or toggled */
+}
+
+@media (min-width: 601px) {
+    .user-sidebar {
+        display: block;
+    }
+}
+
+.user-sidebar h4 {
+    margin-top: 0;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+}
+
+.user-sidebar ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.user-sidebar li {
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 0.9rem;
+}
+
+.typing-indicator {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-style: italic;
+    margin-bottom: 5px;
+    margin-left: 10px;
+    animation: fadeIn 0.3s;
+}
+
 /* --- Mobile Responsiveness --- */
 @media (max-width: 600px) {
     body {
