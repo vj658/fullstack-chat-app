@@ -7,12 +7,22 @@ export default function App() {
     const [user, setUser] = useState(null); // { username, token }
     const [room, setRoom] = useState('');
     const [joined, setJoined] = useState(false);
+    const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
 
     // Auth Form State
     const [isLogin, setIsLogin] = useState(true);
     const [authUsername, setAuthUsername] = useState('');
     const [authPassword, setAuthPassword] = useState('');
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        document.body.className = theme;
+        localStorage.setItem('theme', theme);
+    }, [theme]);
+
+    const toggleTheme = () => {
+        setTheme(theme === 'light' ? 'dark' : 'light');
+    };
 
     useEffect(() => {
         // Check for token
@@ -105,13 +115,50 @@ export default function App() {
     return (
         <div className="app-container">
             {!joined ? (
-                <div className="card join-card">
+                <div className="card join-card" style={{ animation: 'fadeIn 0.6s ease-out' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                        <h3>Hi, {user.username}</h3>
-                        <button onClick={handleLogout} style={{ background: 'none', border: '1px solid #334155', color: '#94a3b8', padding: '4px 8px', borderRadius: 4, cursor: 'pointer' }}>Logout</button>
+                        <h3 style={{ color: 'var(--text-primary)' }}>Hi, {user.username}</h3>
+                        <div>
+                            <button
+                                onClick={toggleTheme}
+                                style={{
+                                    background: 'var(--glass-bg)',
+                                    backdropFilter: 'blur(10px)',
+                                    border: '1px solid var(--glass-border)',
+                                    color: 'var(--text-secondary)',
+                                    padding: '8px 12px',
+                                    borderRadius: 8,
+                                    cursor: 'pointer',
+                                    marginRight: 10,
+                                    transition: 'all 0.2s',
+                                    fontSize: '1.2rem'
+                                }}
+                                onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                            >
+                                {theme === 'light' ? '🌙' : '☀️'}
+                            </button>
+                            <button
+                                onClick={handleLogout}
+                                style={{
+                                    background: 'var(--glass-bg)',
+                                    backdropFilter: 'blur(10px)',
+                                    border: '1px solid var(--glass-border)',
+                                    color: 'var(--text-secondary)',
+                                    padding: '8px 12px',
+                                    borderRadius: 8,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                            >
+                                Logout
+                            </button>
+                        </div>
                     </div>
 
-                    <h2>Join Room</h2>
+                    <h2 style={{ color: 'var(--text-primary)', marginBottom: 30 }}>Join Room</h2>
                     <div className="input-group">
                         <label className="label">Room Name</label>
                         <input
@@ -120,14 +167,49 @@ export default function App() {
                             onChange={e => setRoom(e.target.value)}
                             onKeyDown={handleJoin}
                             placeholder="e.g. General"
+                            style={{
+                                background: 'var(--glass-bg)',
+                                backdropFilter: 'blur(10px)',
+                                border: '1px solid var(--glass-border)',
+                                color: 'var(--text-primary)'
+                            }}
                         />
                     </div>
-                    <button className="btn-primary" onClick={() => handleJoin()}>Enter Room</button>
+                    <button
+                        className="btn-primary"
+                        onClick={() => handleJoin()}
+                        style={{
+                            background: 'var(--primary-color)',
+                            transition: 'all 0.2s',
+                            boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
+                        }}
+                        onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+                        onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+                    >
+                        Enter Room
+                    </button>
                 </div>
             ) : (
-                <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ height: '100%', display: 'flex', flexDirection: 'column', animation: 'fadeIn 0.6s ease-out' }}>
                     <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'flex-end' }}>
-                        <button onClick={() => setJoined(false)} style={{ background: '#334155', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 4, cursor: 'pointer', marginRight: 10 }}>Leave Room</button>
+                        <button
+                            onClick={() => setJoined(false)}
+                            style={{
+                                background: 'var(--glass-bg)',
+                                backdropFilter: 'blur(10px)',
+                                border: '1px solid var(--glass-border)',
+                                color: 'var(--text-primary)',
+                                padding: '8px 16px',
+                                borderRadius: 8,
+                                cursor: 'pointer',
+                                marginRight: 10,
+                                transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                            onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                        >
+                            Leave Room
+                        </button>
                     </div>
                     <Chat username={user.username} room={room} socket={socket} />
                 </div>

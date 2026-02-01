@@ -1,20 +1,39 @@
 :root {
-    --bg-color: #0f172a;
-    --card-bg: #1e293b;
-    --primary-color: #6366f1;
-    --primary-hover: #4f46e5;
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --border-color: #334155;
-    --incoming-msg: #334155;
-    --outgoing-msg: #6366f1;
+    --bg-color: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --card-bg: rgba(255, 255, 255, 0.95);
+    --primary-color: #667eea;
+    --primary-hover: #5a67d8;
+    --text-primary: #2d3748;
+    --text-secondary: #718096;
+    --border-color: rgba(255, 255, 255, 0.2);
+    --incoming-msg: rgba(255, 255, 255, 0.8);
+    --outgoing-msg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    --glass-bg: rgba(255, 255, 255, 0.1);
+    --glass-border: rgba(255, 255, 255, 0.2);
+}
+
+.dark {
+    --bg-color: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+    --card-bg: rgba(45, 55, 72, 0.95);
+    --primary-color: #667eea;
+    --primary-hover: #5a67d8;
+    --text-primary: #f7fafc;
+    --text-secondary: #a0aec0;
+    --border-color: rgba(255, 255, 255, 0.1);
+    --incoming-msg: rgba(74, 85, 104, 0.8);
+    --outgoing-msg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
 }
 
 body {
     margin: 0;
     padding: 0;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background-color: var(--bg-color);
+    background: var(--bg-color);
+    background-attachment: fixed;
     color: var(--text-primary);
     display: flex;
     justify-content: center;
@@ -36,11 +55,13 @@ body {
 }
 
 .card {
-    background: var(--card-bg);
-    border-radius: 16px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 20px;
+    box-shadow: var(--shadow);
     overflow: hidden;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--glass-border);
     display: flex;
     flex-direction: column;
 }
@@ -132,11 +153,12 @@ h3 {
     flex: 1;
     padding: 20px;
     overflow-y: auto;
-    background: #0f172a;
-    /* Slightly darker inner bg */
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 16px;
 }
 
 .chat-footer {
