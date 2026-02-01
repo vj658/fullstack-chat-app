@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import Chat from './components/Chat'
 import { socket } from './socket'
+import { API_URL } from './config';
 
 
 export default function App() {
@@ -28,7 +29,7 @@ export default function App() {
         // Check for token
         const token = localStorage.getItem('token');
         if (token) {
-            fetch('http://localhost:4000/auth/me', {
+            fetch(`${API_URL}/auth/me`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
                 .then(r => {
@@ -51,7 +52,7 @@ export default function App() {
         const endpoint = isLogin ? '/auth/login' : '/auth/register';
 
         try {
-            const res = await fetch(`http://localhost:4000${endpoint}`, {
+            const res = await fetch(`${API_URL}${endpoint}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username: authUsername, password: authPassword })

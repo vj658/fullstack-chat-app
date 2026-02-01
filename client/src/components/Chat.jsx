@@ -1,5 +1,9 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import EmojiPicker from 'emoji-picker-react';
+import { API_URL } from '../config';
+
+const notificationSound = new Audio('https://codeskulptor-demos.commondatastorage.googleapis.com/pang/pop.mp3');
+notificationSound.volume = 0.5;
 
 // Avatar component
 const Avatar = ({ username, size = 32 }) => {
@@ -41,39 +45,42 @@ export default function Chat({ username, room, socket }) {
   useEffect(() => {
     socket.emit('join_room', { room, username });
 
-    fetch(`http://localhost:4000/messages?room=${room}`)
+    fetch(`${API_URL}/messages?room=${room}`)
       .then(r => r.json())
       .then(data => setMessages(data))
       .catch(err => console.error(err));
 
-    socket.on('receive_message', msg => {
+    const handleReceiveMessage = (msg) => {
       setMessages(prev => [...prev, msg]);
-      const audio = new Audio('https://codeskulptor-demos.commondatastorage.googleapis.com/pang/pop.mp3');
-      audio.volume = 0.5;
-      audio.play().catch(e => console.log('Audio play failed', e));
-    });
+      notificationSound.play().catch(e => console.log('Audio play failed', e));
+    };
 
-    socket.on('room_users', (userList) => {
+    const handleRoomUsers = (userList) => {
       setUsers([...new Set(userList)]);
-    });
+    };
 
-    socket.on('typing_status', ({ username: typer, isTyping }) => {
+    const handleTypingStatus = ({ username: typer, isTyping }) => {
       if (isTyping) {
         setTyping(`${typer} is typing...`);
       } else {
         setTyping('');
       }
-    });
+    };
 
-    socket.on('message_updated', (updatedMessage) => {
+    const handleMessageUpdated = (updatedMessage) => {
       setMessages(prev => prev.map(m => m._id === updatedMessage._id ? updatedMessage : m));
-    });
+    };
+
+    socket.on('receive_message', handleReceiveMessage);
+    socket.on('room_users', handleRoomUsers);
+    socket.on('typing_status', handleTypingStatus);
+    socket.on('message_updated', handleMessageUpdated);
 
     return () => {
-      socket.off('receive_message');
-      socket.off('room_users');
-      socket.off('typing_status');
-      socket.off('message_updated');
+      socket.off('receive_message', handleReceiveMessage);
+      socket.off('room_users', handleRoomUsers);
+      socket.off('typing_status', handleTypingStatus);
+      socket.off('message_updated', handleMessageUpdated);
     }
   }, [socket, room, username]);
 
@@ -166,7 +173,7 @@ export default function Chat({ username, room, socket }) {
           {messages.map(m => {
             const isMe = m.username === username;
             return (
-              <div key={m._id ?? crypto.randomUUID()} className={`message ${isMe ? 'me' : 'other'}`} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+              <div key={m._id} className={`message ${isMe ? 'me' : 'other'}`} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                 {!isMe && <Avatar username={m.username} size={32} />}
 
                 <div style={{ flex: 1 }}>
