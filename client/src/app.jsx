@@ -8,7 +8,7 @@ export default function App() {
     const [user, setUser] = useState(null); // { username, token }
     const [room, setRoom] = useState('');
     const [joined, setJoined] = useState(false);
-    const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+    const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
 
     // Auth Form State
     const [isLogin, setIsLogin] = useState(true);
