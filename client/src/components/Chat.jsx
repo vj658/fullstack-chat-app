@@ -1,12 +1,11 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import EmojiPicker from 'emoji-picker-react';
 import { API_URL } from '../config';
 
 const notificationSound = new Audio('https://codeskulptor-demos.commondatastorage.googleapis.com/pang/pop.mp3');
 notificationSound.volume = 0.5;
 
-// Avatar component
-const Avatar = ({ username, size = 32 }) => {
+const Avatar = React.memo(({ username, size = 32 }) => {
   const initials = username.slice(0, 2).toUpperCase();
   return (
     <div
@@ -27,7 +26,9 @@ const Avatar = ({ username, size = 32 }) => {
       {initials}
     </div>
   );
-};
+});
+
+Avatar.displayName = 'Avatar';
 
 export default function Chat({ username, room, socket }) {
   const [messages, setMessages] = useState([]);
@@ -35,8 +36,6 @@ export default function Chat({ username, room, socket }) {
   const [users, setUsers] = useState([]);
   const [typing, setTyping] = useState('');
   const [showPicker, setShowPicker] = useState(false);
-  const [isSending, setIsSending] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(localStorage.getItem('soundEnabled') !== 'false');
   const bottomRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -52,7 +51,9 @@ export default function Chat({ username, room, socket }) {
 
     const handleReceiveMessage = (msg) => {
       setMessages(prev => [...prev, msg]);
-      notificationSound.play().catch(e => console.log('Audio play failed', e));
+      if (msg.username !== username && soundEnabled) {
+        notificationSound.play().catch(() => {});
+      }
     };
 
     const handleRoomUsers = (userList) => {
@@ -82,7 +83,7 @@ export default function Chat({ username, room, socket }) {
       socket.off('typing_status', handleTypingStatus);
       socket.off('message_updated', handleMessageUpdated);
     }
-  }, [socket, room, username]);
+  }, [socket, room, username, soundEnabled]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -136,8 +137,8 @@ export default function Chat({ username, room, socket }) {
       <div className="user-sidebar">
         <h4>Users ({users.length})</h4>
         <ul>
-          {users.map((u, i) => (
-            <li key={i} style={{ color: u === username ? '#6366f1' : 'inherit' }}>
+          {users.map((u) => (
+            <li key={u} style={{ color: u === username ? '#6366f1' : 'inherit' }}>
               {u === username ? 'You' : u}
             </li>
           ))}
@@ -290,8 +291,8 @@ export default function Chat({ username, room, socket }) {
             onKeyDown={e => e.key === 'Enter' && send()}
             placeholder="Type a message..."
           />
-          <button className="send-btn" onClick={send} disabled={isSending}>
-            {isSending ? 'Sending...' : 'Send'}
+          <button className="send-btn" onClick={send}>
+            Send
           </button>
         </div>
       </div>

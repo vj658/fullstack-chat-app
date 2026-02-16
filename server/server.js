@@ -136,10 +136,10 @@ app.get('/messages', async (req, res) => {
     const { room } = req.query;
     if (!room) return res.json([]);
 
-    const messages = await Message.find({ room }).sort({ createdAt: 1 }).limit(100);
+    const messages = await Message.find({ room }).sort({ createdAt: 1 }).limit(100).lean();
     return res.json(messages);
   } catch (err) {
-    console.error(err);
+    logger.error('Fetch messages error:', err);
     return res.status(500).json({ error: 'Failed to fetch messages' });
   }
 });
@@ -152,30 +152,29 @@ const io = new Server(server, {
   }
 });
 
+function getUsersInRoom(io, room) {
+  const usersInRoom = [];
+  const rooms = io.sockets.adapter.rooms.get(room);
+  if (rooms) {
+    rooms.forEach((socketId) => {
+      const clientSocket = io.sockets.sockets.get(socketId);
+      if (clientSocket?.data.user) {
+        usersInRoom.push(clientSocket.data.user.username);
+      }
+    });
+  }
+  return usersInRoom;
+}
+
 io.on('connection', (socket) => {
   logger.info(`Socket connected: ${socket.id}`);
 
   socket.on('join_room', ({ room, username }) => {
     socket.join(room);
-    console.log(`User ${username} (${socket.id}) joined room: ${room}`);
+    logger.info(`User ${username} (${socket.id}) joined room: ${room}`);
 
-    // Store user info in socket data
     socket.data.user = { room, username };
-
-    // Get all users in this room
-    const usersInRoom = [];
-    const rooms = io.sockets.adapter.rooms.get(room);
-    if (rooms) {
-      rooms.forEach(socketId => {
-        const clientSocket = io.sockets.sockets.get(socketId);
-        if (clientSocket && clientSocket.data.user) {
-          usersInRoom.push(clientSocket.data.user.username);
-        }
-      });
-    }
-
-    // Broadcast updated user list
-    io.to(room).emit('room_users', usersInRoom);
+    io.to(room).emit('room_users', getUsersInRoom(io, room));
   });
 
   socket.on('typing', ({ room, isTyping }) => {
@@ -195,7 +194,7 @@ io.on('connection', (socket) => {
 
       io.to(room).emit('receive_message', msg);
     } catch (err) {
-      console.error('Error saving message', err);
+      logger.error('Error saving message:', err);
     }
   });
 
@@ -226,7 +225,7 @@ io.on('connection', (socket) => {
       await msg.save();
       io.to(room).emit('message_updated', msg);
     } catch (err) {
-      console.error('Error toggling reaction', err);
+      logger.error('Error toggling reaction:', err);
     }
   });
 
@@ -248,7 +247,7 @@ io.on('connection', (socket) => {
       await msg.save();
       io.to(room).emit('message_updated', msg);
     } catch (err) {
-      console.error('Error adding reaction', err);
+      logger.error('Error adding reaction:', err);
     }
   });
 
@@ -256,19 +255,7 @@ io.on('connection', (socket) => {
     logger.info(`Socket disconnected: ${socket.id}`);
     const user = socket.data.user;
     if (user) {
-      const room = user.room;
-      // Broadcast new list (minus this user)
-      const usersInRoom = [];
-      const rooms = io.sockets.adapter.rooms.get(room);
-      if (rooms) {
-        rooms.forEach(socketId => {
-          const clientSocket = io.sockets.sockets.get(socketId);
-          if (clientSocket && clientSocket.data.user) {
-            usersInRoom.push(clientSocket.data.user.username);
-          }
-        });
-      }
-      io.to(room).emit('room_users', usersInRoom);
+      io.to(user.room).emit('room_users', getUsersInRoom(io, user.room));
     }
   });
 });
