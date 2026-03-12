@@ -13,6 +13,7 @@
     --glass-border: rgba(255, 255, 255, 0.2);
     --scrollbar-thumb: #475569;
     --scrollbar-thumb-hover: #64748b;
+    --input-bg: rgba(255, 255, 255, 0.85);
 }
 
 .dark {
@@ -108,9 +109,13 @@ h3 {
     background: var(--input-bg, #0f172a);
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    color: white;
+    color: var(--text-primary);
     font-size: 1rem;
     transition: all 0.2s;
+}
+
+.input-field::placeholder {
+    color: var(--text-secondary);
 }
 
 .input-field:focus {
@@ -280,6 +285,11 @@ h3 {
     background: var(--primary-hover);
 }
 
+.send-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
 .user-sidebar {
     width: 200px;
     background: var(--card-bg);
@@ -383,3 +393,4 @@ h3 {
         /* iOS Home bar safe area */
     }
 }
+

@@ -1,9 +1,15 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import EmojiPicker from 'emoji-picker-react';
 import { API_URL } from '../config';
 
 const notificationSound = new Audio('https://codeskulptor-demos.commondatastorage.googleapis.com/pang/pop.mp3');
 notificationSound.volume = 0.5;
+
+const CONNECTED_DOT = '\u25CF';
+const THUMBS_UP = '\uD83D\uDC4D';
+const SPEAKER_ICON = '\uD83D\uDD0A';
+const CAMERA_ICON = '\uD83D\uDCF7';
+const SMILE_ICON = '\uD83D\uDE00';
 
 const Avatar = React.memo(({ username, size = 32 }) => {
   const initials = username.slice(0, 2).toUpperCase();
@@ -40,18 +46,53 @@ export default function Chat({ username, room, socket }) {
   const bottomRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const fileInputRef = useRef(null);
+  const soundEnabledRef = useRef(soundEnabled);
 
   useEffect(() => {
-    socket.emit('join_room', { room, username });
+    soundEnabledRef.current = soundEnabled;
+    localStorage.setItem('soundEnabled', String(soundEnabled));
+  }, [soundEnabled]);
 
-    fetch(`${API_URL}/messages?room=${room}`)
-      .then(r => r.json())
-      .then(data => setMessages(data))
-      .catch(err => console.error(err));
+  useEffect(() => {
+    if (!room || !username) {
+      return undefined;
+    }
+
+    const abortController = new AbortController();
+
+    socket.emit('join_room', { room, username });
+    setMessages([]);
+    setUsers([]);
+    setTyping('');
+
+    fetch(`${API_URL}/messages?room=${encodeURIComponent(room)}`, {
+      signal: abortController.signal,
+    })
+      .then((r) => {
+        if (!r.ok) {
+          throw new Error('Failed to load messages');
+        }
+        return r.json();
+      })
+      .then((data) => {
+        setMessages(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          console.error('Failed to load messages', err);
+        }
+      });
 
     const handleReceiveMessage = (msg) => {
-      setMessages(prev => [...prev, msg]);
-      if (msg.username !== username && soundEnabled) {
+      setMessages((prev) => {
+        if (prev.some((existing) => existing._id === msg._id)) {
+          return prev;
+        }
+        return [...prev, msg];
+      });
+
+      if (msg.username !== username && soundEnabledRef.current) {
+        notificationSound.currentTime = 0;
         notificationSound.play().catch(() => {});
       }
     };
@@ -61,15 +102,23 @@ export default function Chat({ username, room, socket }) {
     };
 
     const handleTypingStatus = ({ username: typer, isTyping }) => {
-      if (isTyping) {
-        setTyping(`${typer} is typing...`);
-      } else {
-        setTyping('');
-      }
+      setTyping(isTyping ? `${typer} is typing...` : '');
     };
 
     const handleMessageUpdated = (updatedMessage) => {
-      setMessages(prev => prev.map(m => m._id === updatedMessage._id ? updatedMessage : m));
+      setMessages((prev) => {
+        let found = false;
+        const nextMessages = prev.map((message) => {
+          if (message._id !== updatedMessage._id) {
+            return message;
+          }
+
+          found = true;
+          return updatedMessage;
+        });
+
+        return found ? nextMessages : [...nextMessages, updatedMessage];
+      });
     };
 
     socket.on('receive_message', handleReceiveMessage);
@@ -78,62 +127,86 @@ export default function Chat({ username, room, socket }) {
     socket.on('message_updated', handleMessageUpdated);
 
     return () => {
+      abortController.abort();
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      socket.emit('typing', { isTyping: false });
+      socket.emit('leave_room', { room });
       socket.off('receive_message', handleReceiveMessage);
       socket.off('room_users', handleRoomUsers);
       socket.off('typing_status', handleTypingStatus);
       socket.off('message_updated', handleMessageUpdated);
-    }
-  }, [socket, room, username, soundEnabled]);
+    };
+  }, [socket, room, username]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, typing]);
 
   const handleInput = useCallback((e) => {
-    setText(e.target.value);
-    socket.emit('typing', { room, isTyping: true });
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    const nextValue = e.target.value;
+    setText(nextValue);
+    socket.emit('typing', { isTyping: nextValue.trim().length > 0 });
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
     typingTimeoutRef.current = setTimeout(() => {
-      socket.emit('typing', { room, isTyping: false });
+      socket.emit('typing', { isTyping: false });
     }, 2000);
-  }, [socket, room]);
+  }, [socket]);
 
   const onEmojiClick = useCallback((emojiData) => {
-    setText(prev => prev + emojiData.emoji);
+    setText((prev) => prev + emojiData.emoji);
     setShowPicker(false);
   }, []);
 
   const handleFileSelect = useCallback((e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result;
-        // Send image message immediately
-        socket.emit('send_message', { username, text: '', imageUrl: base64, room });
-      };
-      reader.readAsDataURL(file);
+    const file = e.target.files?.[0];
+    if (!file) {
+      return;
     }
-  }, [socket, username, room]);
+
+    if (!file.type.startsWith('image/')) {
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = typeof reader.result === 'string' ? reader.result : '';
+      if (base64) {
+        socket.emit('send_message', { imageUrl: base64 });
+      }
+      e.target.value = '';
+    };
+    reader.readAsDataURL(file);
+  }, [socket]);
 
   const send = useCallback(() => {
-    if (!text.trim()) return;
-    socket.emit('send_message', { username, text, room });
-    socket.emit('typing', { room, isTyping: false });
-    setText('');
-  }, [socket, username, text, room]);
+    const trimmedText = text.trim();
+    if (!trimmedText) {
+      return;
+    }
 
-  const addReaction = useCallback((messageId, emoji) => {
-    socket.emit('add_reaction', { messageId, emoji, username, room });
-  }, [socket, username, room]);
+    socket.emit('send_message', { text: trimmedText });
+    socket.emit('typing', { isTyping: false });
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    setText('');
+  }, [socket, text]);
 
   const handleReaction = useCallback((messageId, emoji) => {
-    socket.emit('toggle_reaction', { messageId, emoji, username, room });
-  }, [socket, username, room]);
+    socket.emit('toggle_reaction', { messageId, emoji });
+  }, [socket]);
 
   return (
     <div className="card chat-window" style={{ flexDirection: 'row' }}>
-
       <div className="user-sidebar">
         <h4>Users ({users.length})</h4>
         <ul>
@@ -149,12 +222,9 @@ export default function Chat({ username, room, socket }) {
         <div className="chat-header">
           <h3>#{room}</h3>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '0.9em', color: '#4ade80' }}>● Connected</span>
+            <span style={{ fontSize: '0.9em', color: '#4ade80' }}>{CONNECTED_DOT} Connected</span>
             <button
-              onClick={() => {
-                setSoundEnabled(!soundEnabled);
-                localStorage.setItem('soundEnabled', !soundEnabled);
-              }}
+              onClick={() => setSoundEnabled((prev) => !prev)}
               style={{
                 background: 'none',
                 border: 'none',
@@ -164,14 +234,15 @@ export default function Chat({ username, room, socket }) {
                 transition: 'opacity 0.2s'
               }}
               title={soundEnabled ? 'Disable Sound' : 'Enable Sound'}
+              aria-label={soundEnabled ? 'Disable sound notifications' : 'Enable sound notifications'}
             >
-              🔊
+              {SPEAKER_ICON}
             </button>
           </div>
         </div>
 
         <div className="chat-body">
-          {messages.map(m => {
+          {messages.map((m) => {
             const isMe = m.username === username;
             return (
               <div key={m._id} className={`message ${isMe ? 'me' : 'other'}`} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
@@ -194,7 +265,6 @@ export default function Chat({ username, room, socket }) {
                     {m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                   </span>
 
-                  {/* Reactions */}
                   <div className="message-reactions" style={{ marginTop: '8px' }}>
                     {m.reactions && m.reactions.map((reaction, idx) => (
                       <button
@@ -219,7 +289,7 @@ export default function Chat({ username, room, socket }) {
                       </button>
                     ))}
                     <button
-                      onClick={() => addReaction(m._id, '👍')}
+                      onClick={() => handleReaction(m._id, THUMBS_UP)}
                       style={{
                         background: 'var(--glass-bg)',
                         border: '1px solid var(--glass-border)',
@@ -233,7 +303,7 @@ export default function Chat({ username, room, socket }) {
                       onMouseEnter={(e) => e.target.style.transform = 'scale(1.1)'}
                       onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
                     >
-                      👍
+                      {THUMBS_UP}
                     </button>
                   </div>
                 </div>
@@ -262,7 +332,6 @@ export default function Chat({ username, room, socket }) {
             </div>
           )}
 
-          {/* Hidden File Input */}
           <input
             type="file"
             ref={fileInputRef}
@@ -272,26 +341,29 @@ export default function Chat({ username, room, socket }) {
           />
 
           <button
-            onClick={() => fileInputRef.current.click()}
+            onClick={() => fileInputRef.current?.click()}
             style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', paddingRight: '10px', color: '#94a3b8' }}
             title="Send Image"
+            aria-label="Send image"
           >
-            📷
+            {CAMERA_ICON}
           </button>
 
           <button
-            onClick={() => setShowPicker(!showPicker)}
-            style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', paddingRight: '10px' }}>
-            😀
+            onClick={() => setShowPicker((prev) => !prev)}
+            style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', paddingRight: '10px' }}
+            aria-label="Open emoji picker"
+          >
+            {SMILE_ICON}
           </button>
           <input
             className="input-field"
             value={text}
             onChange={handleInput}
-            onKeyDown={e => e.key === 'Enter' && send()}
+            onKeyDown={(e) => e.key === 'Enter' && send()}
             placeholder="Type a message..."
           />
-          <button className="send-btn" onClick={send}>
+          <button className="send-btn" onClick={send} disabled={!text.trim()}>
             Send
           </button>
         </div>

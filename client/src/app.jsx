@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react'
-import Chat from './components/Chat'
-import { socket } from './socket'
+import React, { useEffect, useState } from 'react';
+import Chat from './components/Chat';
+import { socket } from './socket';
 import { API_URL } from './config';
-
 
 export default function App() {
     const [user, setUser] = useState(null); // { username, token }
@@ -15,6 +14,7 @@ export default function App() {
     const [authUsername, setAuthUsername] = useState('');
     const [authPassword, setAuthPassword] = useState('');
     const [error, setError] = useState('');
+    const [roomError, setRoomError] = useState('');
 
     useEffect(() => {
         document.body.className = theme;
@@ -26,25 +26,38 @@ export default function App() {
     };
 
     useEffect(() => {
-        // Check for token
+        let isMounted = true;
+        const handleSocketConnect = () => console.info('Socket connected', socket.id);
+
         const token = localStorage.getItem('token');
         if (token) {
             fetch(`${API_URL}/auth/me`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
-                .then(r => {
+                .then((r) => {
                     if (r.ok) return r.json();
                     throw new Error('Invalid token');
                 })
-                .then(data => {
-                    setUser({ username: data.username, token });
+                .then((data) => {
+                    if (isMounted) {
+                        setUser({ username: data.username, token });
+                    }
                 })
-                .catch(() => localStorage.removeItem('token'));
+                .catch(() => {
+                    localStorage.removeItem('token');
+                    if (isMounted) {
+                        setUser(null);
+                    }
+                });
         }
 
-        socket.on('connect', () => console.log('connected', socket.id));
-        return () => socket.off('connect');
-    }, [])
+        socket.on('connect', handleSocketConnect);
+
+        return () => {
+            isMounted = false;
+            socket.off('connect', handleSocketConnect);
+        };
+    }, []);
 
     async function handleAuth(e) {
         e.preventDefault();
@@ -73,11 +86,20 @@ export default function App() {
         setUser(null);
         setJoined(false);
         setRoom('');
+        setRoomError('');
     }
 
     function handleJoin(e) {
         if (e && e.key && e.key !== 'Enter') return;
-        if (!room.trim()) return alert('Enter a room');
+
+        const trimmedRoom = room.trim();
+        if (!trimmedRoom) {
+            setRoomError('Enter a room name to continue.');
+            return;
+        }
+
+        setRoom(trimmedRoom);
+        setRoomError('');
         setJoined(true);
     }
 
@@ -91,11 +113,11 @@ export default function App() {
                     <form onSubmit={handleAuth}>
                         <div className="input-group">
                             <label className="label">Username</label>
-                            <input className="input-field" value={authUsername} onChange={e => setAuthUsername(e.target.value)} required />
+                            <input className="input-field" value={authUsername} onChange={(e) => setAuthUsername(e.target.value)} required />
                         </div>
                         <div className="input-group">
                             <label className="label">Password</label>
-                            <input className="input-field" type="password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} required />
+                            <input className="input-field" type="password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} required />
                         </div>
                         <button className="btn-primary" type="submit">{isLogin ? 'Login' : 'Sign Up'}</button>
                     </form>
@@ -103,14 +125,18 @@ export default function App() {
                     <p style={{ marginTop: 20, fontSize: '0.9rem', color: '#94a3b8' }}>
                         {isLogin ? "Don't have an account? " : "Already have an account? "}
                         <button
-                            onClick={() => setIsLogin(!isLogin)}
-                            style={{ background: 'none', border: 'none', color: '#6366f1', cursor: 'pointer', fontWeight: 'bold' }}>
+                            onClick={() => {
+                                setIsLogin(!isLogin);
+                                setError('');
+                            }}
+                            style={{ background: 'none', border: 'none', color: '#6366f1', cursor: 'pointer', fontWeight: 'bold' }}
+                        >
                             {isLogin ? 'Sign Up' : 'Login'}
                         </button>
                     </p>
                 </div>
             </div>
-        )
+        );
     }
 
     return (
@@ -137,7 +163,7 @@ export default function App() {
                                 onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
                                 onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
                             >
-                                {theme === 'light' ? '🌙' : '☀️'}
+                                {theme === 'light' ? '\uD83C\uDF19' : '\u2600\uFE0F'}
                             </button>
                             <button
                                 onClick={handleLogout}
@@ -165,7 +191,10 @@ export default function App() {
                         <input
                             className="input-field"
                             value={room}
-                            onChange={e => setRoom(e.target.value)}
+                            onChange={(e) => {
+                                setRoom(e.target.value);
+                                setRoomError('');
+                            }}
                             onKeyDown={handleJoin}
                             placeholder="e.g. General"
                             style={{
@@ -176,6 +205,7 @@ export default function App() {
                             }}
                         />
                     </div>
+                    {roomError && <p style={{ color: '#f87171', fontSize: '0.9rem', marginTop: -10, marginBottom: 20 }}>{roomError}</p>}
                     <button
                         className="btn-primary"
                         onClick={() => handleJoin()}
@@ -216,5 +246,5 @@ export default function App() {
                 </div>
             )}
         </div>
-    )
+    );
 }
