@@ -1,5 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import EmojiPicker from 'emoji-picker-react';
+import React, { Suspense, useEffect, useRef, useState, useCallback } from 'react';
 import { API_URL } from '../config';
 
 const notificationSound = new Audio('https://codeskulptor-demos.commondatastorage.googleapis.com/pang/pop.mp3');
@@ -10,6 +9,7 @@ const THUMBS_UP = '\uD83D\uDC4D';
 const SPEAKER_ICON = '\uD83D\uDD0A';
 const CAMERA_ICON = '\uD83D\uDCF7';
 const SMILE_ICON = '\uD83D\uDE00';
+const EmojiPicker = React.lazy(() => import('emoji-picker-react'));
 
 const Avatar = React.memo(({ username, size = 32 }) => {
   const initials = username.slice(0, 2).toUpperCase();
@@ -328,7 +328,9 @@ export default function Chat({ username, room, socket }) {
               boxShadow: 'var(--shadow)',
               overflow: 'hidden'
             }}>
-              <EmojiPicker onEmojiClick={onEmojiClick} theme="dark" />
+              <Suspense fallback={<div style={{ padding: '16px', color: 'var(--text-secondary)' }}>Loading...</div>}>
+                <EmojiPicker onEmojiClick={onEmojiClick} theme="dark" />
+              </Suspense>
             </div>
           )}
 
