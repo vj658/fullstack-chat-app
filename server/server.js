@@ -12,6 +12,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const Message = require('./models/Message');
 const User = require('./models/User');
+const Room = require('./models/Room');
 
 // Logger setup
 const logger = winston.createLogger({
@@ -138,6 +139,110 @@ app.get('/auth/me', async (req, res) => {
   }
 });
 
+const requireAuth = (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'No token' });
+    req.user = jwt.verify(token, JWT_SECRET);
+    next();
+  } catch (err) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+};
+
+app.post('/rooms/create', requireAuth, async (req, res) => {
+  try {
+    const name = normalizeRoom(req.body.name);
+    const password = req.body.password || '';
+    if (!name) return res.status(400).json({ error: 'Room name required' });
+    
+    const existing = await Room.findOne({ name });
+    if (existing) return res.status(400).json({ error: 'Room already exists' });
+
+    const isPrivate = Boolean(password);
+    const hashedPassword = isPrivate ? await bcrypt.hash(password, 10) : '';
+
+    const room = new Room({
+      name,
+      password: hashedPassword,
+      creator: req.user.id,
+      isPrivate
+    });
+    await room.save();
+
+    await User.findByIdAndUpdate(req.user.id, {
+      $addToSet: { createdRooms: name, joinedRooms: name }
+    });
+
+    res.json({ success: true, name, isPrivate });
+  } catch (err) {
+    logger.error('Room create error', { err });
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.post('/rooms/join', requireAuth, async (req, res) => {
+  try {
+    const name = normalizeRoom(req.body.name);
+    const password = req.body.password || '';
+    if (!name) return res.status(400).json({ error: 'Room name required' });
+
+    let room = await Room.findOne({ name });
+    
+    if (room && room.isPrivate) {
+      const user = await User.findById(req.user.id);
+      const alreadyJoined = user.joinedRooms.includes(name);
+      if (!alreadyJoined) {
+        if (!password) return res.status(401).json({ error: 'Password required for this private room' });
+        const isMatch = await bcrypt.compare(password, room.password);
+        if (!isMatch) return res.status(401).json({ error: 'Invalid password' });
+      }
+    }
+
+    await User.findByIdAndUpdate(req.user.id, {
+      $addToSet: { joinedRooms: name }
+    });
+
+    res.json({ success: true, name });
+  } catch (err) {
+    logger.error('Room join error', { err });
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.get('/rooms/history', requireAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    res.json({ createdRooms: user.createdRooms || [], joinedRooms: user.joinedRooms || [] });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.delete('/rooms/:roomName', requireAuth, async (req, res) => {
+  try {
+    const name = normalizeRoom(req.params.roomName);
+    const room = await Room.findOne({ name });
+    if (!room) {
+        await User.findByIdAndUpdate(req.user.id, { $pull: { createdRooms: name, joinedRooms: name } });
+        return res.json({ success: true });
+    }
+    
+    if (String(room.creator) !== req.user.id) {
+      return res.status(403).json({ error: 'Not authorized to delete this room' });
+    }
+
+    await Room.deleteOne({ _id: room._id });
+    await Message.deleteMany({ room: name });
+    await User.updateMany({}, { $pull: { joinedRooms: name, createdRooms: name } });
+
+    res.json({ success: true });
+  } catch (err) {
+    logger.error('Room delete error', { err });
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 app.get('/messages', async (req, res) => {
   try {
     const room = normalizeRoom(req.query.room);
@@ -182,12 +287,25 @@ function broadcastRoomUsers(room) {
 io.on('connection', (socket) => {
   logger.info('Socket connected', { socketId: socket.id });
 
-  socket.on('join_room', ({ room, username }) => {
+  socket.on('join_room', async ({ room, username }) => {
     const normalizedRoom = normalizeRoom(room);
     const normalizedUsername = normalizeText(username);
 
     if (!normalizedRoom || !normalizedUsername) {
       return;
+    }
+
+    try {
+      const roomDoc = await Room.findOne({ name: normalizedRoom });
+      if (roomDoc && roomDoc.isPrivate) {
+        const user = await User.findOne({ username: normalizedUsername });
+        if (!user || (!user.joinedRooms.includes(normalizedRoom) && String(roomDoc.creator) !== String(user._id))) {
+          // not authorized
+          return;
+        }
+      }
+    } catch(err) {
+      logger.error('Room check error on socket join', { err });
     }
 
     const previousRoom = normalizeRoom(socket.data.user?.room);

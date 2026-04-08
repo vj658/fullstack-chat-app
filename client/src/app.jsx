@@ -8,6 +8,11 @@ export default function App() {
     const [room, setRoom] = useState('');
     const [joined, setJoined] = useState(false);
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
+    
+    // Room Features State
+    const [roomPassword, setRoomPassword] = useState('');
+    const [joinMode, setJoinMode] = useState('join');
+    const [history, setHistory] = useState({ createdRooms: [], joinedRooms: [] });
 
     // Auth Form State
     const [isLogin, setIsLogin] = useState(true);
@@ -86,21 +91,90 @@ export default function App() {
         setUser(null);
         setJoined(false);
         setRoom('');
+        setRoomPassword('');
         setRoomError('');
     }
 
-    function handleJoin(e) {
-        if (e && e.key && e.key !== 'Enter') return;
+    useEffect(() => {
+        if (user && !joined) {
+            fetchHistory();
+        }
+    }, [user, joined]);
 
-        const trimmedRoom = room.trim();
+    async function fetchHistory() {
+        try {
+            const res = await fetch(`${API_URL}/rooms/history`, {
+                headers: { Authorization: `Bearer ${user.token}` }
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setHistory(data);
+            }
+        } catch (err) {
+            console.error('Failed to fetch history');
+        }
+    }
+
+    async function handleDeleteRoom(roomName) {
+        if (!window.confirm(`Are you sure you want to delete the room "${roomName}"?`)) return;
+        try {
+            const res = await fetch(`${API_URL}/rooms/${roomName}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${user.token}` }
+            });
+            if (res.ok) {
+                fetchHistory();
+            } else {
+                const data = await res.json();
+                alert(data.error || 'Failed to delete room');
+            }
+        } catch (err) {
+            console.error('Failed to delete room');
+        }
+    }
+
+    async function handleRoomSubmit(e, overrideRoom, overridePassword = '') {
+        if (e && e.key && e.key !== 'Enter') return;
+        
+        const trimmedRoom = (overrideRoom || room).trim();
+        const pwd = overrideRoom ? overridePassword : roomPassword;
+
         if (!trimmedRoom) {
             setRoomError('Enter a room name to continue.');
             return;
         }
 
-        setRoom(trimmedRoom);
         setRoomError('');
-        setJoined(true);
+        const endpoint = joinMode === 'create' ? '/rooms/create' : '/rooms/join';
+        
+        try {
+            const res = await fetch(`${API_URL}${endpoint}`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${user.token}`
+                },
+                body: JSON.stringify({ name: trimmedRoom, password: pwd })
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                // If it's a direct join from history and missing password
+                if (data.error && data.error.toLowerCase().includes('password') && overrideRoom) {
+                    setRoomError('Password required. Select the room, enter password, and join.');
+                    setRoom(trimmedRoom);
+                } else {
+                    throw new Error(data.error || 'Failed to process room');
+                }
+                return;
+            }
+            
+            setRoom(trimmedRoom);
+            setJoined(true);
+            setRoomPassword('');
+        } catch (err) {
+            setRoomError(err.message);
+        }
     }
 
     if (!user) {
@@ -142,7 +216,7 @@ export default function App() {
     return (
         <div className="app-container">
             {!joined ? (
-                <div className="card join-card" style={{ animation: 'fadeIn 0.6s ease-out' }}>
+                <div className="card join-card" style={{ animation: 'fadeIn 0.6s ease-out', maxWidth: '600px', width: '90%' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                         <h3 style={{ color: 'var(--text-primary)' }}>Hi, {user.username}</h3>
                         <div>
@@ -185,7 +259,19 @@ export default function App() {
                         </div>
                     </div>
 
-                    <h2 style={{ color: 'var(--text-primary)', marginBottom: 30 }}>Join Room</h2>
+                    <div style={{ display: 'flex', marginBottom: 20 }}>
+                        <button 
+                            onClick={() => { setJoinMode('join'); setRoomError(''); }}
+                            style={{ flex: 1, padding: '10px', background: joinMode === 'join' ? 'var(--primary-color)' : 'transparent', color: joinMode === 'join' ? '#fff' : 'var(--text-primary)', border: '1px solid var(--primary-color)', borderRadius: '8px 0 0 8px', cursor: 'pointer', transition: 'all 0.2s' }}
+                        >Join Room</button>
+                        <button 
+                            onClick={() => { setJoinMode('create'); setRoomError(''); }}
+                            style={{ flex: 1, padding: '10px', background: joinMode === 'create' ? 'var(--primary-color)' : 'transparent', color: joinMode === 'create' ? '#fff' : 'var(--text-primary)', border: '1px solid var(--primary-color)', borderRadius: '0 8px 8px 0', cursor: 'pointer', transition: 'all 0.2s' }}
+                        >Create Room</button>
+                    </div>
+
+                    <h2 style={{ color: 'var(--text-primary)', marginBottom: 20 }}>{joinMode === 'create' ? 'Create a New Room' : 'Join an Existing Room'}</h2>
+                    
                     <div className="input-group">
                         <label className="label">Room Name</label>
                         <input
@@ -195,7 +281,7 @@ export default function App() {
                                 setRoom(e.target.value);
                                 setRoomError('');
                             }}
-                            onKeyDown={handleJoin}
+                            onKeyDown={handleRoomSubmit}
                             placeholder="e.g. General"
                             style={{
                                 background: 'var(--glass-bg)',
@@ -205,10 +291,28 @@ export default function App() {
                             }}
                         />
                     </div>
+                    <div className="input-group">
+                        <label className="label">Password (Optional)</label>
+                        <input
+                            className="input-field"
+                            type="password"
+                            value={roomPassword}
+                            onChange={(e) => setRoomPassword(e.target.value)}
+                            onKeyDown={handleRoomSubmit}
+                            placeholder={joinMode === 'create' ? "Set a password to make it private" : "Enter password if room is private"}
+                            style={{
+                                background: 'var(--glass-bg)',
+                                backdropFilter: 'blur(10px)',
+                                border: '1px solid var(--glass-border)',
+                                color: 'var(--text-primary)'
+                            }}
+                        />
+                    </div>
+
                     {roomError && <p style={{ color: '#f87171', fontSize: '0.9rem', marginTop: -10, marginBottom: 20 }}>{roomError}</p>}
                     <button
                         className="btn-primary"
-                        onClick={() => handleJoin()}
+                        onClick={(e) => handleRoomSubmit(e)}
                         style={{
                             background: 'var(--primary-color)',
                             transition: 'all 0.2s',
@@ -217,8 +321,64 @@ export default function App() {
                         onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
                         onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
                     >
-                        Enter Room
+                        {joinMode === 'create' ? 'Create Room' : 'Enter Room'}
                     </button>
+
+                    <div style={{ marginTop: 30, textAlign: 'left' }}>
+                        <h3 style={{ color: 'var(--text-primary)', marginBottom: 15, fontSize: '1.2rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: 10 }}>Room History</h3>
+                        
+                        <div style={{ display: 'flex', gap: '20px', flexDirection: 'row' }}>
+                            <div style={{ flex: 1 }}>
+                                <h4 style={{ color: 'var(--text-secondary)', marginBottom: 12, fontSize: '0.95rem' }}>Created Rooms</h4>
+                                {history.createdRooms.length === 0 ? <p style={{ color: '#64748b', fontSize: '0.85rem' }}>No instances.</p> : null}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    {history.createdRooms.map(r => (
+                                        <div key={r} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--glass-bg)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+                                            <span 
+                                                style={{ color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 'bold' }} 
+                                                onClick={() => { setRoom(r); setJoinMode('join'); }}
+                                            >
+                                                {r}
+                                            </span>
+                                            <button 
+                                                onClick={() => handleDeleteRoom(r)}
+                                                style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 10px', fontSize: '0.75rem', cursor: 'pointer', transition: 'background 0.2s' }}
+                                                onMouseEnter={(e) => e.target.style.background = '#dc2626'}
+                                                onMouseLeave={(e) => e.target.style.background = '#ef4444'}
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            
+                            <div style={{ flex: 1 }}>
+                                <h4 style={{ color: 'var(--text-secondary)', marginBottom: 12, fontSize: '0.95rem' }}>Joined Rooms</h4>
+                                {history.joinedRooms.length === 0 ? <p style={{ color: '#64748b', fontSize: '0.85rem' }}>No instances.</p> : null}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    {history.joinedRooms.map(r => (
+                                        <div key={r} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--glass-bg)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+                                            <span 
+                                                style={{ color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 'bold' }} 
+                                                onClick={() => { setRoom(r); setJoinMode('join'); }}
+                                            >
+                                                {r}
+                                            </span>
+                                            <button 
+                                                onClick={(e) => { setJoinMode('join'); handleRoomSubmit(null, r, ''); }}
+                                                style={{ background: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 10px', fontSize: '0.75rem', cursor: 'pointer', transition: 'background 0.2s' }}
+                                                onMouseEnter={(e) => e.target.style.background = '#4f46e5'}
+                                                onMouseLeave={(e) => e.target.style.background = 'var(--primary-color)'}
+                                            >
+                                                Join
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             ) : (
                 <div style={{ height: '100%', display: 'flex', flexDirection: 'column', animation: 'fadeIn 0.6s ease-out' }}>
