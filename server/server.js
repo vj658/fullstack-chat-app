@@ -295,13 +295,20 @@ io.on('connection', (socket) => {
       return;
     }
 
+    let isCreator = false;
+
     try {
       const roomDoc = await Room.findOne({ name: normalizedRoom });
-      if (roomDoc && roomDoc.isPrivate) {
+      if (roomDoc) {
         const user = await User.findOne({ username: normalizedUsername });
-        if (!user || (!user.joinedRooms.includes(normalizedRoom) && String(roomDoc.creator) !== String(user._id))) {
-          // not authorized
-          return;
+        if (roomDoc.isPrivate) {
+          if (!user || (!user.joinedRooms.includes(normalizedRoom) && String(roomDoc.creator) !== String(user._id))) {
+            // not authorized
+            return;
+          }
+        }
+        if (user && String(roomDoc.creator) === String(user._id)) {
+          isCreator = true;
         }
       }
     } catch(err) {
@@ -320,6 +327,8 @@ io.on('connection', (socket) => {
 
     socket.data.user = { room: normalizedRoom, username: normalizedUsername };
     logger.info('User joined room', { username: normalizedUsername, room: normalizedRoom, socketId: socket.id });
+    
+    socket.emit('room_info', { isCreator });
     broadcastRoomUsers(normalizedRoom);
   });
 
@@ -335,6 +344,35 @@ io.on('connection', (socket) => {
     socket.data.user = undefined;
     broadcastRoomUsers(targetRoom);
     logger.info('User left room', { room: targetRoom, socketId: socket.id });
+  });
+
+  socket.on('kick_user', async ({ targetUsername }) => {
+    try {
+      const activeRoom = normalizeRoom(socket.data.user?.room);
+      const activeUsername = normalizeText(socket.data.user?.username);
+
+      if (!activeRoom || !activeUsername || !targetUsername) return;
+
+      const roomDoc = await Room.findOne({ name: activeRoom });
+      if (!roomDoc) return;
+      const requester = await User.findOne({ username: activeUsername });
+      if (!requester || String(roomDoc.creator) !== String(requester._id)) return; // unauthorized
+
+      const rooms = io.sockets.adapter.rooms.get(activeRoom);
+      if (rooms) {
+        for (const socketId of rooms) {
+          const clientSocket = io.sockets.sockets.get(socketId);
+          if (clientSocket?.data.user?.username === targetUsername) {
+            clientSocket.leave(activeRoom);
+            clientSocket.data.user = undefined;
+            clientSocket.emit('kicked');
+          }
+        }
+      }
+      broadcastRoomUsers(activeRoom);
+    } catch(err) {
+      logger.error('Error kicking user', { err });
+    }
   });
 
   socket.on('typing', ({ isTyping }) => {

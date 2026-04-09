@@ -402,7 +402,7 @@ export default function App() {
                             Leave Room
                         </button>
                     </div>
-                    <Chat username={user.username} room={room} socket={socket} />
+                    <Chat username={user.username} room={room} socket={socket} onLeave={() => setJoined(false)} />
                 </div>
             )}
         </div>

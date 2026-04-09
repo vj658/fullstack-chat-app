@@ -36,12 +36,13 @@ const Avatar = React.memo(({ username, size = 32 }) => {
 
 Avatar.displayName = 'Avatar';
 
-export default function Chat({ username, room, socket }) {
+export default function Chat({ username, room, socket, onLeave }) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const [users, setUsers] = useState([]);
   const [typing, setTyping] = useState('');
   const [showPicker, setShowPicker] = useState(false);
+  const [isCreator, setIsCreator] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(localStorage.getItem('soundEnabled') !== 'false');
   const bottomRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -64,6 +65,7 @@ export default function Chat({ username, room, socket }) {
     setMessages([]);
     setUsers([]);
     setTyping('');
+    setIsCreator(false);
 
     fetch(`${API_URL}/messages?room=${encodeURIComponent(room)}`, {
       signal: abortController.signal,
@@ -121,10 +123,21 @@ export default function Chat({ username, room, socket }) {
       });
     };
 
+    const handleRoomInfo = ({ isCreator: isRoomCreator }) => {
+      setIsCreator(!!isRoomCreator);
+    };
+
+    const handleKicked = () => {
+      alert("You have been kicked from the room.");
+      if (onLeave) onLeave();
+    };
+
     socket.on('receive_message', handleReceiveMessage);
     socket.on('room_users', handleRoomUsers);
     socket.on('typing_status', handleTypingStatus);
     socket.on('message_updated', handleMessageUpdated);
+    socket.on('room_info', handleRoomInfo);
+    socket.on('kicked', handleKicked);
 
     return () => {
       abortController.abort();
@@ -137,8 +150,10 @@ export default function Chat({ username, room, socket }) {
       socket.off('room_users', handleRoomUsers);
       socket.off('typing_status', handleTypingStatus);
       socket.off('message_updated', handleMessageUpdated);
+      socket.off('room_info', handleRoomInfo);
+      socket.off('kicked', handleKicked);
     };
-  }, [socket, room, username]);
+  }, [socket, room, username, onLeave]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -211,8 +226,26 @@ export default function Chat({ username, room, socket }) {
         <h4>Users ({users.length})</h4>
         <ul>
           {users.map((u) => (
-            <li key={u} style={{ color: u === username ? '#6366f1' : 'inherit' }}>
-              {u === username ? 'You' : u}
+            <li key={u} style={{ color: u === username ? '#6366f1' : 'inherit', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>{u === username ? 'You' : u}</span>
+              {isCreator && u !== username && (
+                <button
+                  onClick={() => {
+                    if (window.confirm(`Are you sure you want to kick ${u}?`)) {
+                      socket.emit('kick_user', { targetUsername: u });
+                    }
+                  }}
+                  style={{
+                    background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px',
+                    padding: '2px 6px', fontSize: '0.7rem', cursor: 'pointer', opacity: 0.9,
+                    transition: 'all 0.2s', marginLeft: '8px'
+                  }}
+                  onMouseEnter={(e) => e.target.style.opacity = '1'}
+                  onMouseLeave={(e) => e.target.style.opacity = '0.9'}
+                >
+                  Kick
+                </button>
+              )}
             </li>
           ))}
         </ul>
