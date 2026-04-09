@@ -13,6 +13,15 @@ const jwt = require('jsonwebtoken');
 const Message = require('./models/Message');
 const User = require('./models/User');
 const Room = require('./models/Room');
+const fs = require('fs');
+const path = require('path');
+
+function logActivity(message) {
+  const logLine = `[${new Date().toISOString()}] ${message}\n`;
+  fs.appendFile(path.join(__dirname, 'activity.log'), logLine, (err) => {
+    if (err) console.error('Failed to write activity log', err);
+  });
+}
 
 // Logger setup
 const logger = winston.createLogger({
@@ -93,6 +102,7 @@ app.post('/auth/register', [
 
     const token = jwt.sign({ id: user._id, username: user.username }, JWT_SECRET, { expiresIn: '1d' });
     logger.info('User registered', { username });
+    logActivity(`New User Registered: ${username}`);
     res.json({ token, username });
   } catch (err) {
     logger.error('Registration error', { err });
@@ -174,6 +184,7 @@ app.post('/rooms/create', requireAuth, async (req, res) => {
       $addToSet: { createdRooms: name, joinedRooms: name }
     });
 
+    logActivity(`New Room Created: ${name} (Private: ${isPrivate}) by User ID: ${req.user.id}`);
     res.json({ success: true, name, isPrivate });
   } catch (err) {
     logger.error('Room create error', { err });
