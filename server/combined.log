@@ -4,3 +4,23 @@
 {"level":"info","message":"User registered: Name 2","service":"chat-server","timestamp":"2026-02-14T06:43:17.007Z"}
 {"level":"info","message":"Socket disconnected: UxEogGd8oLZrFSGoAAAB","service":"chat-server","timestamp":"2026-02-14T06:43:43.076Z"}
 {"level":"info","message":"Socket disconnected: TreRv5qb9XalDKjCAAAD","service":"chat-server","timestamp":"2026-02-14T06:44:17.466Z"}
+{"level":"warn","message":"Using the default JWT secret. Set JWT_SECRET in the environment.","service":"chat-server","timestamp":"2026-04-08T11:26:45.926Z"}
+{"level":"info","message":"Connected to MongoDB","service":"chat-server","timestamp":"2026-04-08T11:26:46.019Z"}
+{"level":"info","message":"Server started","port":"4000","service":"chat-server","timestamp":"2026-04-08T11:26:46.026Z"}
+{"level":"info","message":"Socket connected","service":"chat-server","socketId":"C2K0L8PbX6rr2RDnAAAB","timestamp":"2026-04-08T11:27:05.745Z"}
+{"level":"info","message":"User logged in","service":"chat-server","timestamp":"2026-04-08T11:28:00.640Z","username":"Vishnujith J"}
+{"level":"info","message":"Socket connected","service":"chat-server","socketId":"Jz28H_fN2aIfj9t3AAAD","timestamp":"2026-04-09T17:51:57.962Z"}
+{"level":"info","message":"Socket disconnected","room":"","service":"chat-server","socketId":"C2K0L8PbX6rr2RDnAAAB","timestamp":"2026-04-09T17:52:03.959Z"}
+{"level":"info","message":"User logged in","service":"chat-server","timestamp":"2026-04-09T17:52:22.926Z","username":"Vishnujith J"}
+{"level":"info","message":"User joined room","room":"Room 1","service":"chat-server","socketId":"Jz28H_fN2aIfj9t3AAAD","timestamp":"2026-04-09T17:52:33.212Z","username":"Vishnujith J"}
+{"level":"info","message":"User joined room","room":"Room 1","service":"chat-server","socketId":"Jz28H_fN2aIfj9t3AAAD","timestamp":"2026-04-09T17:52:33.243Z","username":"Vishnujith J"}
+{"level":"warn","message":"Using the default JWT secret. Set JWT_SECRET in the environment.","service":"chat-server","timestamp":"2026-04-09T18:07:12.877Z"}
+{"level":"info","message":"Connected to MongoDB","service":"chat-server","timestamp":"2026-04-09T18:07:12.930Z"}
+{"level":"info","message":"Server started","port":"4000","service":"chat-server","timestamp":"2026-04-09T18:07:12.938Z"}
+{"level":"info","message":"Socket connected","service":"chat-server","socketId":"gtNas6xeDIeVGWixAAAB","timestamp":"2026-04-09T18:07:13.220Z"}
+{"level":"info","message":"Socket connected","service":"chat-server","socketId":"8ydMW4ELrcOypmBYAAAD","timestamp":"2026-04-09T18:07:31.389Z"}
+{"level":"info","message":"Socket disconnected","room":"","service":"chat-server","socketId":"8ydMW4ELrcOypmBYAAAD","timestamp":"2026-04-09T18:07:34.339Z"}
+{"level":"info","message":"Socket connected","service":"chat-server","socketId":"7zfBgggyHOW-MC3dAAAF","timestamp":"2026-04-09T18:07:34.471Z"}
+{"level":"info","message":"User joined room","room":"R","service":"chat-server","socketId":"7zfBgggyHOW-MC3dAAAF","timestamp":"2026-04-09T18:07:50.789Z","username":"Vishnujith J"}
+{"level":"info","message":"User left room","room":"R","service":"chat-server","socketId":"7zfBgggyHOW-MC3dAAAF","timestamp":"2026-04-09T18:07:50.795Z"}
+{"level":"info","message":"User joined room","room":"R","service":"chat-server","socketId":"7zfBgggyHOW-MC3dAAAF","timestamp":"2026-04-09T18:07:50.804Z","username":"Vishnujith J"}

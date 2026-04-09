@@ -12,6 +12,7 @@ export default function App() {
     // Room Features State
     const [roomPassword, setRoomPassword] = useState('');
     const [joinMode, setJoinMode] = useState('join');
+    const [dmUsername, setDmUsername] = useState('');
     const [history, setHistory] = useState({ createdRooms: [], joinedRooms: [] });
 
     // Auth Form State
@@ -177,6 +178,39 @@ export default function App() {
         }
     }
 
+    async function handleDMSubmit(e) {
+        if (e && e.key && e.key !== 'Enter') return;
+        
+        const trimmedTarget = dmUsername.trim();
+        if (!trimmedTarget) {
+            setRoomError('Enter a username to continue.');
+            return;
+        }
+
+        setRoomError('');
+        try {
+            const res = await fetch(`${API_URL}/rooms/dm`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${user.token}`
+                },
+                body: JSON.stringify({ targetUsername: trimmedTarget })
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to process direct message');
+            }
+            
+            setRoom(data.name);
+            setJoined(true);
+            setDmUsername('');
+        } catch (err) {
+            setRoomError(err.message);
+        }
+    }
+
     if (!user) {
         return (
             <div className="app-container">
@@ -266,53 +300,83 @@ export default function App() {
                         >Join Room</button>
                         <button 
                             onClick={() => { setJoinMode('create'); setRoomError(''); }}
-                            style={{ flex: 1, padding: '10px', background: joinMode === 'create' ? 'var(--primary-color)' : 'transparent', color: joinMode === 'create' ? '#fff' : 'var(--text-primary)', border: '1px solid var(--primary-color)', borderRadius: '0 8px 8px 0', cursor: 'pointer', transition: 'all 0.2s' }}
+                            style={{ flex: 1, padding: '10px', background: joinMode === 'create' ? 'var(--primary-color)' : 'transparent', color: joinMode === 'create' ? '#fff' : 'var(--text-primary)', borderTop: '1px solid var(--primary-color)', borderBottom: '1px solid var(--primary-color)', borderRight: '1px solid var(--primary-color)', borderLeft: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
                         >Create Room</button>
+                        <button 
+                            onClick={() => { setJoinMode('dm'); setRoomError(''); }}
+                            style={{ flex: 1, padding: '10px', background: joinMode === 'dm' ? 'var(--primary-color)' : 'transparent', color: joinMode === 'dm' ? '#fff' : 'var(--text-primary)', borderTop: '1px solid var(--primary-color)', borderBottom: '1px solid var(--primary-color)', borderRight: '1px solid var(--primary-color)', borderLeft: 'none', borderRadius: '0 8px 8px 0', cursor: 'pointer', transition: 'all 0.2s' }}
+                        >Direct Message</button>
                     </div>
 
-                    <h2 style={{ color: 'var(--text-primary)', marginBottom: 20 }}>{joinMode === 'create' ? 'Create a New Room' : 'Join an Existing Room'}</h2>
+                    <h2 style={{ color: 'var(--text-primary)', marginBottom: 20 }}>
+                        {joinMode === 'create' ? 'Create a New Room' : joinMode === 'dm' ? 'Send a Direct Message' : 'Join an Existing Room'}
+                    </h2>
                     
-                    <div className="input-group">
-                        <label className="label">Room Name</label>
-                        <input
-                            className="input-field"
-                            value={room}
-                            onChange={(e) => {
-                                setRoom(e.target.value);
-                                setRoomError('');
-                            }}
-                            onKeyDown={handleRoomSubmit}
-                            placeholder="e.g. General"
-                            style={{
-                                background: 'var(--glass-bg)',
-                                backdropFilter: 'blur(10px)',
-                                border: '1px solid var(--glass-border)',
-                                color: 'var(--text-primary)'
-                            }}
-                        />
-                    </div>
-                    <div className="input-group">
-                        <label className="label">Password (Optional)</label>
-                        <input
-                            className="input-field"
-                            type="password"
-                            value={roomPassword}
-                            onChange={(e) => setRoomPassword(e.target.value)}
-                            onKeyDown={handleRoomSubmit}
-                            placeholder={joinMode === 'create' ? "Set a password to make it private" : "Enter password if room is private"}
-                            style={{
-                                background: 'var(--glass-bg)',
-                                backdropFilter: 'blur(10px)',
-                                border: '1px solid var(--glass-border)',
-                                color: 'var(--text-primary)'
-                            }}
-                        />
-                    </div>
+                    {joinMode !== 'dm' ? (
+                        <>
+                            <div className="input-group">
+                                <label className="label">Room Name</label>
+                                <input
+                                    className="input-field"
+                                    value={room}
+                                    onChange={(e) => {
+                                        setRoom(e.target.value);
+                                        setRoomError('');
+                                    }}
+                                    onKeyDown={handleRoomSubmit}
+                                    placeholder="e.g. General"
+                                    style={{
+                                        background: 'var(--glass-bg)',
+                                        backdropFilter: 'blur(10px)',
+                                        border: '1px solid var(--glass-border)',
+                                        color: 'var(--text-primary)'
+                                    }}
+                                />
+                            </div>
+                            <div className="input-group">
+                                <label className="label">Password (Optional)</label>
+                                <input
+                                    className="input-field"
+                                    type="password"
+                                    value={roomPassword}
+                                    onChange={(e) => setRoomPassword(e.target.value)}
+                                    onKeyDown={handleRoomSubmit}
+                                    placeholder={joinMode === 'create' ? "Set a password to make it private" : "Enter password if room is private"}
+                                    style={{
+                                        background: 'var(--glass-bg)',
+                                        backdropFilter: 'blur(10px)',
+                                        border: '1px solid var(--glass-border)',
+                                        color: 'var(--text-primary)'
+                                    }}
+                                />
+                            </div>
+                        </>
+                    ) : (
+                        <div className="input-group">
+                            <label className="label">Target Username</label>
+                            <input
+                                className="input-field"
+                                value={dmUsername}
+                                onChange={(e) => {
+                                    setDmUsername(e.target.value);
+                                    setRoomError('');
+                                }}
+                                onKeyDown={handleDMSubmit}
+                                placeholder="Enter their username EXACTLY"
+                                style={{
+                                    background: 'var(--glass-bg)',
+                                    backdropFilter: 'blur(10px)',
+                                    border: '1px solid var(--glass-border)',
+                                    color: 'var(--text-primary)'
+                                }}
+                            />
+                        </div>
+                    )}
 
                     {roomError && <p style={{ color: '#f87171', fontSize: '0.9rem', marginTop: -10, marginBottom: 20 }}>{roomError}</p>}
                     <button
                         className="btn-primary"
-                        onClick={(e) => handleRoomSubmit(e)}
+                        onClick={(e) => joinMode === 'dm' ? handleDMSubmit(e) : handleRoomSubmit(e)}
                         style={{
                             background: 'var(--primary-color)',
                             transition: 'all 0.2s',
@@ -321,7 +385,7 @@ export default function App() {
                         onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
                         onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
                     >
-                        {joinMode === 'create' ? 'Create Room' : 'Enter Room'}
+                        {joinMode === 'create' ? 'Create Room' : joinMode === 'dm' ? 'Start Chat' : 'Enter Room'}
                     </button>
 
                     <div style={{ marginTop: 30, textAlign: 'left' }}>

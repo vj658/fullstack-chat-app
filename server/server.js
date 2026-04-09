@@ -224,6 +224,49 @@ app.post('/rooms/join', requireAuth, async (req, res) => {
   }
 });
 
+app.post('/rooms/dm', requireAuth, async (req, res) => {
+  try {
+    const targetUsername = normalizeText(req.body.targetUsername);
+    if (!targetUsername) return res.status(400).json({ error: 'Target username required' });
+
+    if (targetUsername === req.user.username) {
+      return res.status(400).json({ error: 'Cannot direct message yourself' });
+    }
+
+    const targetUser = await User.findOne({ username: targetUsername });
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const roomName = 'DM-' + [req.user.username, targetUsername].sort().join('-');
+
+    let room = await Room.findOne({ name: roomName });
+    if (!room) {
+      const randomPassword = require('crypto').randomBytes(16).toString('hex');
+      const hashedPassword = await bcrypt.hash(randomPassword, 10);
+      room = new Room({
+        name: roomName,
+        password: hashedPassword,
+        creator: req.user.id,
+        isPrivate: true
+      });
+      await room.save();
+      await User.updateMany(
+        { username: { $in: [req.user.username, targetUsername] } },
+        { $addToSet: { joinedRooms: roomName } }
+      );
+      logActivity(`New DM Room Created: ${roomName} between ${req.user.username} and ${targetUsername}`);
+    } else {
+      await User.findByIdAndUpdate(req.user.id, { $addToSet: { joinedRooms: roomName } });
+    }
+
+    res.json({ success: true, name: roomName });
+  } catch (err) {
+    logger.error('Room DM create error', { err });
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 app.get('/rooms/history', requireAuth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
