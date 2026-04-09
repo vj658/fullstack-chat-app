@@ -157,7 +157,7 @@ app.post('/rooms/create', requireAuth, async (req, res) => {
     if (!name) return res.status(400).json({ error: 'Room name required' });
     
     const existing = await Room.findOne({ name });
-    if (existing) return res.status(400).json({ error: 'Room already exists' });
+    if (existing) return res.status(400).json({ error: 'Room already exists. Please choose a different name.' });
 
     const isPrivate = Boolean(password);
     const hashedPassword = isPrivate ? await bcrypt.hash(password, 10) : '';
@@ -188,8 +188,11 @@ app.post('/rooms/join', requireAuth, async (req, res) => {
     if (!name) return res.status(400).json({ error: 'Room name required' });
 
     let room = await Room.findOne({ name });
+    if (!room) {
+      return res.status(404).json({ error: 'Room does not exist. Please create it first.' });
+    }
     
-    if (room && room.isPrivate) {
+    if (room.isPrivate) {
       const user = await User.findById(req.user.id);
       const alreadyJoined = user.joinedRooms.includes(name);
       if (!alreadyJoined) {
@@ -299,18 +302,20 @@ io.on('connection', (socket) => {
 
     try {
       const roomDoc = await Room.findOne({ name: normalizedRoom });
-      if (roomDoc) {
-        const user = await User.findOne({ username: normalizedUsername });
-        if (roomDoc.isPrivate) {
-          if (!user || (!user.joinedRooms.includes(normalizedRoom) && String(roomDoc.creator) !== String(user._id))) {
-            // not authorized
-            return;
-          }
+      if (!roomDoc) {
+        return; // Room does not exist, reject socket join
+      }
+
+      const user = await User.findOne({ username: normalizedUsername });
+      if (roomDoc.isPrivate) {
+        if (!user || (!user.joinedRooms.includes(normalizedRoom) && String(roomDoc.creator) !== String(user._id))) {
+          // not authorized
+          return;
         }
+      }
         if (user && String(roomDoc.creator) === String(user._id)) {
           isCreator = true;
         }
-      }
     } catch(err) {
       logger.error('Room check error on socket join', { err });
     }
