@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react';
 import Chat from './components/Chat';
 import { socket } from './socket';
 import { API_URL } from './config';
+import { Moon, Sun, LogOut, MessageSquarePlus, MessageSquare, Plus, Hash, Trash2, LogIn, UserPlus } from 'lucide-react';
 
 export default function App() {
     const [user, setUser] = useState(null); // { username, token }
     const [room, setRoom] = useState('');
     const [joined, setJoined] = useState(false);
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
-    
+
     // Room Features State
     const [roomPassword, setRoomPassword] = useState('');
     const [joinMode, setJoinMode] = useState('join');
@@ -136,7 +137,7 @@ export default function App() {
 
     async function handleRoomSubmit(e, overrideRoom, overridePassword = '') {
         if (e && e.key && e.key !== 'Enter') return;
-        
+
         const trimmedRoom = (overrideRoom || room).trim();
         const pwd = overrideRoom ? overridePassword : roomPassword;
 
@@ -147,11 +148,11 @@ export default function App() {
 
         setRoomError('');
         const endpoint = joinMode === 'create' ? '/rooms/create' : '/rooms/join';
-        
+
         try {
             const res = await fetch(`${API_URL}${endpoint}`, {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${user.token}`
                 },
@@ -169,7 +170,7 @@ export default function App() {
                 }
                 return;
             }
-            
+
             setRoom(trimmedRoom);
             setJoined(true);
             setRoomPassword('');
@@ -180,7 +181,7 @@ export default function App() {
 
     async function handleDMSubmit(e) {
         if (e && e.key && e.key !== 'Enter') return;
-        
+
         const trimmedTarget = dmUsername.trim();
         if (!trimmedTarget) {
             setRoomError('Enter a username to continue.');
@@ -191,7 +192,7 @@ export default function App() {
         try {
             const res = await fetch(`${API_URL}/rooms/dm`, {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${user.token}`
                 },
@@ -202,7 +203,7 @@ export default function App() {
             if (!res.ok) {
                 throw new Error(data.error || 'Failed to process direct message');
             }
-            
+
             setRoom(data.name);
             setJoined(true);
             setDmUsername('');
@@ -213,33 +214,43 @@ export default function App() {
 
     if (!user) {
         return (
-            <div className="app-container">
-                <div className="card join-card">
-                    <h2>{isLogin ? 'Welcome Back' : 'Create Account'}</h2>
-                    {error && <p style={{ color: 'red', fontSize: '0.9rem' }}>{error}</p>}
+            <div className="app-wrapper">
+                <div className="bg-mesh"></div>
+                <div className="glass-panel auth-container">
+                    <div className="auth-header-row">
+                        <h2>{isLogin ? 'Welcome Back' : 'Get Started'}</h2>
+                        <button className="btn-icon" onClick={toggleTheme}>
+                            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+                        </button>
+                    </div>
+                    {error && <p className="text-danger text-sm">{error}</p>}
 
-                    <form onSubmit={handleAuth}>
-                        <div className="input-group">
-                            <label className="label">Username</label>
-                            <input className="input-field" value={authUsername} onChange={(e) => setAuthUsername(e.target.value)} required />
+                    <form onSubmit={handleAuth} className="flex-col gap-4">
+                        <div>
+                            <label className="input-label">Username</label>
+                            <input className="modern-input" value={authUsername} onChange={(e) => setAuthUsername(e.target.value)} required placeholder="Enter your username" />
                         </div>
-                        <div className="input-group">
-                            <label className="label">Password</label>
-                            <input className="input-field" type="password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} required />
+                        <div>
+                            <label className="input-label">Password</label>
+                            <input className="modern-input" type="password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} required placeholder="Enter your password" />
                         </div>
-                        <button className="btn-primary" type="submit">{isLogin ? 'Login' : 'Sign Up'}</button>
+                        <button className="btn btn-primary w-full mt-4" type="submit">
+                            {isLogin ? <LogIn size={18} /> : <UserPlus size={18} />}
+                            {isLogin ? 'Sign In' : 'Create Account'}
+                        </button>
                     </form>
 
-                    <p style={{ marginTop: 20, fontSize: '0.9rem', color: '#94a3b8' }}>
+                    <p className="text-sm text-muted" style={{ textAlign: 'center', margin: 0 }}>
                         {isLogin ? "Don't have an account? " : "Already have an account? "}
                         <button
                             onClick={() => {
                                 setIsLogin(!isLogin);
                                 setError('');
                             }}
-                            style={{ background: 'none', border: 'none', color: '#6366f1', cursor: 'pointer', fontWeight: 'bold' }}
+                            className="btn-ghost"
+                            style={{ fontWeight: 600, padding: 0 }}
                         >
-                            {isLogin ? 'Sign Up' : 'Login'}
+                            {isLogin ? 'Sign Up' : 'Sign In'}
                         </button>
                     </p>
                 </div>
@@ -248,222 +259,150 @@ export default function App() {
     }
 
     return (
-        <div className="app-container">
+        <div className="app-wrapper">
+            <div className="bg-mesh"></div>
             {!joined ? (
-                <div className="card join-card" style={{ animation: 'fadeIn 0.6s ease-out', maxWidth: '600px', width: '90%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                        <h3 style={{ color: 'var(--text-primary)' }}>Hi, {user.username}</h3>
+                <div className="glass-panel" style={{ width: '100%', maxWidth: '800px', display: 'flex', flexDirection: 'column', padding: '2.5rem' }}>
+                    <div className="flex-row justify-between mb-4 pb-4" style={{ borderBottom: '1px solid var(--glass-border)' }}>
                         <div>
-                            <button
-                                onClick={toggleTheme}
-                                style={{
-                                    background: 'var(--glass-bg)',
-                                    backdropFilter: 'blur(10px)',
-                                    border: '1px solid var(--glass-border)',
-                                    color: 'var(--text-secondary)',
-                                    padding: '8px 12px',
-                                    borderRadius: 8,
-                                    cursor: 'pointer',
-                                    marginRight: 10,
-                                    transition: 'all 0.2s',
-                                    fontSize: '1.2rem'
-                                }}
-                                onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
-                                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-                            >
-                                {theme === 'light' ? '\uD83C\uDF19' : '\u2600\uFE0F'}
+                            <h2 style={{ fontSize: '1.75rem', fontWeight: 700 }}>Dashboard</h2>
+                            <p className="text-muted" style={{ marginTop: 4 }}>Logged in as <span className="text-primary-color" style={{ fontWeight: 'bold' }}>{user.username}</span></p>
+                        </div>
+                        <div className="flex-row gap-2">
+                            <button className="btn-icon" onClick={toggleTheme} title="Toggle Theme" style={{ border: '1px solid var(--glass-border)' }}>
+                                {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
                             </button>
-                            <button
-                                onClick={handleLogout}
-                                style={{
-                                    background: 'var(--glass-bg)',
-                                    backdropFilter: 'blur(10px)',
-                                    border: '1px solid var(--glass-border)',
-                                    color: 'var(--text-secondary)',
-                                    padding: '8px 12px',
-                                    borderRadius: 8,
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s'
-                                }}
-                                onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
-                                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-                            >
-                                Logout
+                            <button className="btn btn-glass" onClick={handleLogout} title="Logout">
+                                <LogOut size={16} /> Logout
                             </button>
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', marginBottom: 20 }}>
-                        <button 
+                    <div className="tabs mb-4">
+                        <button
+                            className={`tab ${joinMode === 'join' ? 'active' : ''}`}
                             onClick={() => { setJoinMode('join'); setRoomError(''); }}
-                            style={{ flex: 1, padding: '10px', background: joinMode === 'join' ? 'var(--primary-color)' : 'transparent', color: joinMode === 'join' ? '#fff' : 'var(--text-primary)', border: '1px solid var(--primary-color)', borderRadius: '8px 0 0 8px', cursor: 'pointer', transition: 'all 0.2s' }}
-                        >Join Room</button>
-                        <button 
+                        >
+                            <Hash size={18} style={{ display: 'inline', marginRight: 4, verticalAlign: 'text-bottom' }} /> Join Room
+                        </button>
+                        <button
+                            className={`tab ${joinMode === 'create' ? 'active' : ''}`}
                             onClick={() => { setJoinMode('create'); setRoomError(''); }}
-                            style={{ flex: 1, padding: '10px', background: joinMode === 'create' ? 'var(--primary-color)' : 'transparent', color: joinMode === 'create' ? '#fff' : 'var(--text-primary)', borderTop: '1px solid var(--primary-color)', borderBottom: '1px solid var(--primary-color)', borderRight: '1px solid var(--primary-color)', borderLeft: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
-                        >Create Room</button>
-                        <button 
+                        >
+                            <Plus size={18} style={{ display: 'inline', marginRight: 4, verticalAlign: 'text-bottom' }} /> Create Room
+                        </button>
+                        <button
+                            className={`tab ${joinMode === 'dm' ? 'active' : ''}`}
                             onClick={() => { setJoinMode('dm'); setRoomError(''); }}
-                            style={{ flex: 1, padding: '10px', background: joinMode === 'dm' ? 'var(--primary-color)' : 'transparent', color: joinMode === 'dm' ? '#fff' : 'var(--text-primary)', borderTop: '1px solid var(--primary-color)', borderBottom: '1px solid var(--primary-color)', borderRight: '1px solid var(--primary-color)', borderLeft: 'none', borderRadius: '0 8px 8px 0', cursor: 'pointer', transition: 'all 0.2s' }}
-                        >Direct Message</button>
+                        >
+                            <MessageSquarePlus size={18} style={{ display: 'inline', marginRight: 4, verticalAlign: 'text-bottom' }} /> Direct Message
+                        </button>
                     </div>
 
-                    <h2 style={{ color: 'var(--text-primary)', marginBottom: 20 }}>
-                        {joinMode === 'create' ? 'Create a New Room' : joinMode === 'dm' ? 'Send a Direct Message' : 'Join an Existing Room'}
-                    </h2>
-                    
                     {joinMode !== 'dm' ? (
-                        <>
-                            <div className="input-group">
-                                <label className="label">Room Name</label>
+                        <div className="flex-col gap-3 mb-4 p-4" style={{ background: 'var(--glass-bg)', borderRadius: 16 }}>
+                            <div>
+                                <label className="input-label">Room Name</label>
                                 <input
-                                    className="input-field"
+                                    className="modern-input"
                                     value={room}
                                     onChange={(e) => {
                                         setRoom(e.target.value);
                                         setRoomError('');
                                     }}
                                     onKeyDown={handleRoomSubmit}
-                                    placeholder="e.g. General"
-                                    style={{
-                                        background: 'var(--glass-bg)',
-                                        backdropFilter: 'blur(10px)',
-                                        border: '1px solid var(--glass-border)',
-                                        color: 'var(--text-primary)'
-                                    }}
+                                    placeholder="e.g. general"
                                 />
                             </div>
-                            <div className="input-group">
-                                <label className="label">Password (Optional)</label>
+                            <div>
+                                <label className="input-label">Password (Optional)</label>
                                 <input
-                                    className="input-field"
+                                    className="modern-input"
                                     type="password"
                                     value={roomPassword}
                                     onChange={(e) => setRoomPassword(e.target.value)}
                                     onKeyDown={handleRoomSubmit}
                                     placeholder={joinMode === 'create' ? "Set a password to make it private" : "Enter password if room is private"}
-                                    style={{
-                                        background: 'var(--glass-bg)',
-                                        backdropFilter: 'blur(10px)',
-                                        border: '1px solid var(--glass-border)',
-                                        color: 'var(--text-primary)'
-                                    }}
                                 />
                             </div>
-                        </>
+                        </div>
                     ) : (
-                        <div className="input-group">
-                            <label className="label">Target Username</label>
-                            <input
-                                className="input-field"
-                                value={dmUsername}
-                                onChange={(e) => {
-                                    setDmUsername(e.target.value);
-                                    setRoomError('');
-                                }}
-                                onKeyDown={handleDMSubmit}
-                                placeholder="Enter their username EXACTLY"
-                                style={{
-                                    background: 'var(--glass-bg)',
-                                    backdropFilter: 'blur(10px)',
-                                    border: '1px solid var(--glass-border)',
-                                    color: 'var(--text-primary)'
-                                }}
-                            />
+                        <div className="flex-col gap-3 mb-4 p-4" style={{ background: 'var(--glass-bg)', borderRadius: 16 }}>
+                            <div>
+                                <label className="input-label">Target Username</label>
+                                <input
+                                    className="modern-input"
+                                    value={dmUsername}
+                                    onChange={(e) => {
+                                        setDmUsername(e.target.value);
+                                        setRoomError('');
+                                    }}
+                                    onKeyDown={handleDMSubmit}
+                                    placeholder="Enter their username EXACTLY"
+                                />
+                            </div>
                         </div>
                     )}
 
-                    {roomError && <p style={{ color: '#f87171', fontSize: '0.9rem', marginTop: -10, marginBottom: 20 }}>{roomError}</p>}
+                    {roomError && <p className="text-danger text-sm mb-4">{roomError}</p>}
                     <button
-                        className="btn-primary"
+                        className="btn btn-primary w-full mb-4"
                         onClick={(e) => joinMode === 'dm' ? handleDMSubmit(e) : handleRoomSubmit(e)}
-                        style={{
-                            background: 'var(--primary-color)',
-                            transition: 'all 0.2s',
-                            boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
-                        }}
-                        onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
-                        onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
                     >
                         {joinMode === 'create' ? 'Create Room' : joinMode === 'dm' ? 'Start Chat' : 'Enter Room'}
                     </button>
 
-                    <div style={{ marginTop: 30, textAlign: 'left' }}>
-                        <h3 style={{ color: 'var(--text-primary)', marginBottom: 15, fontSize: '1.2rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: 10 }}>Room History</h3>
-                        
-                        <div style={{ display: 'flex', gap: '20px', flexDirection: 'row' }}>
-                            <div style={{ flex: 1 }}>
-                                <h4 style={{ color: 'var(--text-secondary)', marginBottom: 12, fontSize: '0.95rem' }}>Created Rooms</h4>
-                                {history.createdRooms.length === 0 ? <p style={{ color: '#64748b', fontSize: '0.85rem' }}>No instances.</p> : null}
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    {history.createdRooms.map(r => (
-                                        <div key={r} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--glass-bg)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
-                                            <span 
-                                                style={{ color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 'bold' }} 
-                                                onClick={() => { setRoom(r); setJoinMode('join'); }}
-                                            >
-                                                {r}
-                                            </span>
-                                            <button 
-                                                onClick={() => handleDeleteRoom(r)}
-                                                style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 10px', fontSize: '0.75rem', cursor: 'pointer', transition: 'background 0.2s' }}
-                                                onMouseEnter={(e) => e.target.style.background = '#dc2626'}
-                                                onMouseLeave={(e) => e.target.style.background = '#ef4444'}
-                                            >
-                                                Delete
-                                            </button>
+                    <div className="flex-row gap-4 mt-4" style={{ flexWrap: 'wrap' }}>
+                        <div style={{ flex: '1 1 300px' }}>
+                            <h4 className="text-sm text-muted mb-2" style={{ fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Created Rooms</h4>
+                            {history.createdRooms.length === 0 ? <p className="text-xs text-muted">No instances.</p> : null}
+                            <div className="flex-col gap-1">
+                                {history.createdRooms.map(r => (
+                                    <div key={r} className="list-item">
+                                        <div className="flex-row gap-2" onClick={() => { setRoom(r); setJoinMode('join'); }} style={{ flex: 1 }}>
+                                            <Hash size={16} className="text-primary-color" />
+                                            <span className="list-item-title">{r}</span>
                                         </div>
-                                    ))}
-                                </div>
+                                        <button
+                                            onClick={() => handleDeleteRoom(r)}
+                                            className="btn-icon text-danger"
+                                            title="Delete room"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                ))}
                             </div>
-                            
-                            <div style={{ flex: 1 }}>
-                                <h4 style={{ color: 'var(--text-secondary)', marginBottom: 12, fontSize: '0.95rem' }}>Joined Rooms</h4>
-                                {history.joinedRooms.length === 0 ? <p style={{ color: '#64748b', fontSize: '0.85rem' }}>No instances.</p> : null}
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    {history.joinedRooms.map(r => (
-                                        <div key={r} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--glass-bg)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
-                                            <span 
-                                                style={{ color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 'bold' }} 
-                                                onClick={() => { setRoom(r); setJoinMode('join'); }}
-                                            >
-                                                {r}
-                                            </span>
-                                            <button 
-                                                onClick={(e) => { setJoinMode('join'); handleRoomSubmit(null, r, ''); }}
-                                                style={{ background: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 10px', fontSize: '0.75rem', cursor: 'pointer', transition: 'background 0.2s' }}
-                                                onMouseEnter={(e) => e.target.style.background = '#4f46e5'}
-                                                onMouseLeave={(e) => e.target.style.background = 'var(--primary-color)'}
-                                            >
-                                                Join
-                                            </button>
+                        </div>
+
+                        <div style={{ flex: '1 1 300px' }}>
+                            <h4 className="text-sm text-muted mb-2" style={{ fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Joined Rooms</h4>
+                            {history.joinedRooms.length === 0 ? <p className="text-xs text-muted">No instances.</p> : null}
+                            <div className="flex-col gap-1">
+                                {history.joinedRooms.map(r => (
+                                    <div key={r} className="list-item">
+                                        <div className="flex-row gap-2" onClick={() => { setRoom(r); setJoinMode('join'); }} style={{ flex: 1 }}>
+                                            <MessageSquare size={16} className="text-primary-color" />
+                                            <span className="list-item-title">{r}</span>
                                         </div>
-                                    ))}
-                                </div>
+                                        <button
+                                            onClick={(e) => { setJoinMode('join'); handleRoomSubmit(null, r, ''); }}
+                                            className="btn-glass text-xs p-2"
+                                            style={{ padding: '4px 10px' }}
+                                        >
+                                            Join
+                                        </button>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </div>
                 </div>
             ) : (
-                <div style={{ height: '100%', display: 'flex', flexDirection: 'column', animation: 'fadeIn 0.6s ease-out' }}>
-                    <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'flex-end' }}>
-                        <button
-                            onClick={() => setJoined(false)}
-                            style={{
-                                background: 'var(--glass-bg)',
-                                backdropFilter: 'blur(10px)',
-                                border: '1px solid var(--glass-border)',
-                                color: 'var(--text-primary)',
-                                padding: '8px 16px',
-                                borderRadius: 8,
-                                cursor: 'pointer',
-                                marginRight: 10,
-                                transition: 'all 0.2s'
-                            }}
-                            onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
-                            onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-                        >
-                            Leave Room
+                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div style={{ marginBottom: 15, display: 'flex', justifyContent: 'flex-end', width: '100%', maxWidth: 1200 }}>
+                        <button className="btn btn-glass" onClick={() => setJoined(false)}>
+                            <LogOut size={16} /> Leave Room
                         </button>
                     </div>
                     <Chat username={user.username} room={room} socket={socket} onLeave={() => setJoined(false)} />

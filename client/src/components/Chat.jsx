@@ -1,32 +1,21 @@
 import React, { Suspense, useEffect, useRef, useState, useCallback } from 'react';
 import { API_URL } from '../config';
+import { Volume2, VolumeX, Image as ImageIcon, Smile, Send, Users, ShieldAlert, Hash, ThumbsUp } from 'lucide-react';
 
 const notificationSound = new Audio('https://codeskulptor-demos.commondatastorage.googleapis.com/pang/pop.mp3');
 notificationSound.volume = 0.5;
 
-const CONNECTED_DOT = '\u25CF';
-const THUMBS_UP = '\uD83D\uDC4D';
-const SPEAKER_ICON = '\uD83D\uDD0A';
-const CAMERA_ICON = '\uD83D\uDCF7';
-const SMILE_ICON = '\uD83D\uDE00';
 const EmojiPicker = React.lazy(() => import('emoji-picker-react'));
 
 const Avatar = React.memo(({ username, size = 32 }) => {
   const initials = username.slice(0, 2).toUpperCase();
   return (
     <div
+      className="avatar"
       style={{
         width: size,
         height: size,
-        borderRadius: '50%',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: 'white',
         fontSize: size * 0.4,
-        fontWeight: 'bold',
-        marginRight: 8,
       }}
     >
       {initials}
@@ -95,7 +84,7 @@ export default function Chat({ username, room, socket, onLeave }) {
 
       if (msg.username !== username && soundEnabledRef.current) {
         notificationSound.currentTime = 0;
-        notificationSound.play().catch(() => {});
+        notificationSound.play().catch(() => { });
       }
     };
 
@@ -221,13 +210,20 @@ export default function Chat({ username, room, socket, onLeave }) {
   }, [socket]);
 
   return (
-    <div className="card chat-window" style={{ flexDirection: 'row' }}>
-      <div className="user-sidebar">
-        <h4>Users ({users.length})</h4>
-        <ul>
+    <div className="glass-panel chat-layout">
+      {/* Sidebar Overlay structure handles desktop cleanly, for mobile you'd want a Drawer but standard works here */}
+      <div className="sidebar" style={{ display: typeof window !== 'undefined' && window.innerWidth < 601 ? 'none' : 'flex' }}>
+        <div className="sidebar-header">
+          <h4 className="flex-row gap-2" style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <Users size={16} /> Members ({users.length})
+          </h4>
+        </div>
+        <div className="sidebar-content flex-col gap-1">
           {users.map((u) => (
-            <li key={u} style={{ color: u === username ? '#6366f1' : 'inherit', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>{u === username ? 'You' : u}</span>
+            <div key={u} className="list-item" style={{ background: 'transparent', border: 'none', padding: '0.75rem', marginBottom: 0 }}>
+              <span style={{ color: u === username ? 'var(--primary)' : 'var(--text-primary)', fontWeight: u === username ? '600' : '400' }}>
+                {u === username ? 'You' : u}
+              </span>
               {isCreator && u !== username && (
                 <button
                   onClick={() => {
@@ -235,134 +231,110 @@ export default function Chat({ username, room, socket, onLeave }) {
                       socket.emit('kick_user', { targetUsername: u });
                     }
                   }}
-                  style={{
-                    background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px',
-                    padding: '2px 6px', fontSize: '0.7rem', cursor: 'pointer', opacity: 0.9,
-                    transition: 'all 0.2s', marginLeft: '8px'
-                  }}
-                  onMouseEnter={(e) => e.target.style.opacity = '1'}
-                  onMouseLeave={(e) => e.target.style.opacity = '0.9'}
+                  className="btn-icon text-danger"
+                  style={{ padding: '0.25rem' }}
+                  title={`Kick ${u}`}
                 >
-                  Kick
+                  <ShieldAlert size={16} />
                 </button>
               )}
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       </div>
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      <div className="chat-main" style={{ position: 'relative' }}>
         <div className="chat-header">
-          <h3>#{room}</h3>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '0.9em', color: '#4ade80' }}>{CONNECTED_DOT} Connected</span>
+          <div className="flex-row gap-2">
+            <Hash className="text-muted" size={24} />
+            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{room}</h3>
+          </div>
+          <div className="flex-row gap-4">
+            <span className="flex-row gap-2 text-success text-sm" style={{ fontWeight: 600 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--success)', display: 'inline-block', boxShadow: '0 0 8px var(--success)' }}></span>
+              Connected
+            </span>
             <button
               onClick={() => setSoundEnabled((prev) => !prev)}
-              style={{
-                background: 'none',
-                border: 'none',
-                fontSize: '1.2rem',
-                cursor: 'pointer',
-                opacity: soundEnabled ? 1 : 0.5,
-                transition: 'opacity 0.2s'
-              }}
-              title={soundEnabled ? 'Disable Sound' : 'Enable Sound'}
-              aria-label={soundEnabled ? 'Disable sound notifications' : 'Enable sound notifications'}
+              className="btn-icon"
+              title={soundEnabled ? 'Disable Sound notifications' : 'Enable Sound notifications'}
+              style={{ opacity: soundEnabled ? 1 : 0.5 }}
             >
-              {SPEAKER_ICON}
+              {soundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
             </button>
           </div>
         </div>
 
-        <div className="chat-body">
+        <div className="chat-messages">
           {messages.map((m) => {
             const isMe = m.username === username;
             return (
-              <div key={m._id} className={`message ${isMe ? 'me' : 'other'}`} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                {!isMe && <Avatar username={m.username} size={32} />}
+              <div key={m._id} className={`message-wrapper ${isMe ? 'me' : 'other'}`}>
+                {!isMe && <Avatar username={m.username} size={36} />}
 
-                <div style={{ flex: 1 }}>
-                  {!isMe && <span className="username-label" style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>{m.username}</span>}
+                <div className="message-content">
+                  {!isMe && <span className="username-tag">{m.username}</span>}
 
                   {m.imageUrl && (
                     <img
                       src={m.imageUrl}
                       alt="uploaded"
-                      style={{ maxWidth: '100%', borderRadius: 12, marginTop: 5, marginBottom: 5, display: 'block', boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}
+                      style={{ maxWidth: '100%', borderRadius: 16, marginTop: 5, marginBottom: 5, display: 'block', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}
                     />
                   )}
 
-                  {m.text && <span style={{ display: 'block', marginBottom: '4px' }}>{m.text}</span>}
+                  {m.text && <div className="message-bubble">{m.text}</div>}
 
-                  <span className="message-meta" style={{ fontSize: '0.7rem', opacity: 0.6 }}>
+                  <span className="message-meta">
                     {m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                   </span>
 
-                  <div className="message-reactions" style={{ marginTop: '8px' }}>
-                    {m.reactions && m.reactions.map((reaction, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleReaction(m._id, reaction.emoji)}
-                        style={{
-                          background: reaction.users.includes(username) ? 'var(--primary-color)' : 'var(--glass-bg)',
-                          color: reaction.users.includes(username) ? 'white' : 'var(--text-secondary)',
-                          border: '1px solid var(--glass-border)',
-                          borderRadius: 16,
-                          padding: '4px 8px',
-                          marginRight: 6,
-                          cursor: 'pointer',
-                          fontSize: '0.8rem',
-                          transition: 'all 0.2s',
-                          backdropFilter: 'blur(10px)'
-                        }}
-                        onMouseEnter={(e) => e.target.style.transform = 'scale(1.1)'}
-                        onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-                      >
-                        {reaction.emoji} {reaction.users.length}
-                      </button>
-                    ))}
+                  <div className="reactions-row">
+                    {m.reactions && m.reactions.map((reaction, idx) => {
+                      const isActive = reaction.users.includes(username);
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => handleReaction(m._id, reaction.emoji)}
+                          className={`reaction-btn ${isActive ? 'active' : ''}`}
+                          data-active={isActive}
+                        >
+                          {reaction.emoji} {reaction.users.length}
+                        </button>
+                      );
+                    })}
                     <button
-                      onClick={() => handleReaction(m._id, THUMBS_UP)}
-                      style={{
-                        background: 'var(--glass-bg)',
-                        border: '1px solid var(--glass-border)',
-                        borderRadius: 16,
-                        padding: '4px 8px',
-                        cursor: 'pointer',
-                        fontSize: '0.8rem',
-                        transition: 'all 0.2s',
-                        backdropFilter: 'blur(10px)'
-                      }}
-                      onMouseEnter={(e) => e.target.style.transform = 'scale(1.1)'}
-                      onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                      onClick={() => handleReaction(m._id, '👍')}
+                      className="reaction-btn"
+                      title="React with Thumbs Up"
                     >
-                      {THUMBS_UP}
+                      <ThumbsUp size={14} />
                     </button>
                   </div>
                 </div>
               </div>
             );
           })}
-          {typing && <div className="typing-indicator">{typing}</div>}
-          <div ref={bottomRef} />
+          {typing && <div className="text-muted text-sm" style={{ fontStyle: 'italic', paddingLeft: '1rem', animation: 'fadeInUp 0.3s' }}>{typing}</div>}
+          <div ref={bottomRef} style={{ height: 1 }} />
         </div>
 
-        <div className="chat-footer">
+        <div className="chat-input-area">
           {showPicker && (
             <div style={{
               position: 'absolute',
-              bottom: '80px',
+              bottom: '90px',
               left: '20px',
               zIndex: 100,
               background: 'var(--glass-bg)',
               backdropFilter: 'blur(20px)',
               border: '1px solid var(--glass-border)',
               borderRadius: '16px',
-              boxShadow: 'var(--shadow)',
+              boxShadow: 'var(--panel-shadow)',
               overflow: 'hidden'
             }}>
               <Suspense fallback={<div style={{ padding: '16px', color: 'var(--text-secondary)' }}>Loading...</div>}>
-                <EmojiPicker onEmojiClick={onEmojiClick} theme="dark" />
+                <EmojiPicker onEmojiClick={onEmojiClick} theme={localStorage.getItem('theme') || 'dark'} />
               </Suspense>
             </div>
           )}
@@ -377,29 +349,30 @@ export default function Chat({ username, room, socket, onLeave }) {
 
           <button
             onClick={() => fileInputRef.current?.click()}
-            style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', paddingRight: '10px', color: '#94a3b8' }}
+            className="btn-icon"
             title="Send Image"
-            aria-label="Send image"
           >
-            {CAMERA_ICON}
+            <ImageIcon size={22} />
           </button>
 
           <button
             onClick={() => setShowPicker((prev) => !prev)}
-            style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', paddingRight: '10px' }}
-            aria-label="Open emoji picker"
+            className="btn-icon"
+            title="Choose Emoji"
           >
-            {SMILE_ICON}
+            <Smile size={22} />
           </button>
+
           <input
-            className="input-field"
+            className="modern-input"
             value={text}
             onChange={handleInput}
             onKeyDown={(e) => e.key === 'Enter' && send()}
             placeholder="Type a message..."
+            style={{ flex: 1, padding: '1rem' }}
           />
-          <button className="send-btn" onClick={send} disabled={!text.trim()}>
-            Send
+          <button className="btn btn-primary" onClick={send} disabled={!text.trim()} style={{ padding: '1rem' }}>
+            <Send size={18} />
           </button>
         </div>
       </div>
